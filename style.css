@@ -192,12 +192,36 @@ button:active { transform: scale(0.96); }
 .secondary-button.danger { border-color: rgba(255, 75, 114, 0.3); color: #ff7597; }
 .danger-btn { background: #ff4b72 !important; box-shadow: none !important; }
 
-/* SELECTOR DE AVATAR EN EDITAR PERFIL */
+/* SELECTOR DE AVATAR Y PESTAÑAS DE AUTH */
+.auth-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+}
+
+.auth-tab {
+    flex: 1;
+    padding: 8px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 700;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+}
+
+.auth-tab.active {
+    background: rgba(255, 75, 114, 0.15);
+    color: #ff7597;
+}
+
 .edit-avatar-picker-container {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin: 15px 0 20px;
+    margin: 10px 0 15px;
 }
 
 .edit-avatar-picker {
@@ -309,4 +333,3 @@ button:active { transform: scale(0.96); }
     .modal-overlay { align-items: center; }
     .modal { border-radius: 25px; }
 }
-es S
