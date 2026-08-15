@@ -58,28 +58,90 @@ function initApp() {
         });
     }
 
-    // REGISTRO / LOGIN
+    // PESTAÑAS EN AUTH MODAL
+    const tabRegister = document.getElementById("tabRegister");
+    const tabLogin = document.getElementById("tabLogin");
+    const formRegister = document.getElementById("formRegisterContainer");
+    const formLogin = document.getElementById("formLoginContainer");
+
+    tabRegister.addEventListener("click", () => {
+        tabRegister.classList.add("active");
+        tabLogin.classList.remove("active");
+        formRegister.style.display = "block";
+        formLogin.style.display = "none";
+    });
+
+    tabLogin.addEventListener("click", () => {
+        tabLogin.classList.add("active");
+        tabRegister.classList.remove("active");
+        formLogin.style.display = "block";
+        formRegister.style.display = "none";
+    });
+
+    // CAMBIAR AVATAR EN AUTH FORMULARIO
+    const authPhotoInput = document.getElementById("authPhotoFile");
+    authPhotoInput.addEventListener("change", async () => {
+        const previewImg = await processImageFile(authPhotoInput);
+        if (previewImg) {
+            renderAvatar(document.getElementById("authAvatarPreview"), previewImg);
+        }
+    });
+
+    // ACCIÓN: CREAR CUENTA / REGISTRO DIRECTO
     document.getElementById("btnStartSession").addEventListener("click", async () => {
         const name = document.getElementById("authName").value.trim();
         const email = document.getElementById("authEmail").value.trim();
+        const password = document.getElementById("authPassword").value.trim();
         const pronouns = document.getElementById("authPronouns").value.trim() || "(Él/Ella/Elle)";
-        const photoFile = document.getElementById("authPhotoFile");
 
-        if (!name || !email) {
-            showToast("Completa tu nombre y correo por favor");
+        if (!name || !email || !password) {
+            showToast("Completa tu nombre, correo y contraseña");
             return;
         }
 
-        const photoBase64 = await processImageFile(photoFile);
+        const photoBase64 = await processImageFile(authPhotoInput);
         const id = "usr_" + btoa(email.toLowerCase()).replace(/=/g, "");
-        currentUser = { id, name, email, pronouns, photo: photoBase64 || null, lat: userCoords.lat, lng: userCoords.lng };
+        
+        currentUser = { id, name, email, password, pronouns, photo: photoBase64 || null, lat: userCoords.lat, lng: userCoords.lng };
 
         localStorage.setItem("vibraUserSession", JSON.stringify(currentUser));
         authModal.classList.remove("active");
         updatePresence();
         updateUI();
         initInboxList();
-        showToast("¡Sesión iniciada correctamente! ✨");
+        showToast("¡Cuenta creada y sesión iniciada! ✨");
+    });
+
+    // ACCIÓN: INICIAR SESIÓN SOLO CON CORREO Y CONTRASEÑA
+    document.getElementById("btnSubmitLogin").addEventListener("click", async () => {
+        const email = document.getElementById("loginEmail").value.trim();
+        const password = document.getElementById("loginPassword").value.trim();
+
+        if (!email || !password) {
+            showToast("Ingresa tu correo y contraseña");
+            return;
+        }
+
+        const id = "usr_" + btoa(email.toLowerCase()).replace(/=/g, "");
+        const userDocRef = doc(db, "users", id);
+        const userSnap = await getDoc(userDocRef);
+
+        if (userSnap.exists()) {
+            const userData = userSnap.data();
+            if (userData.password && userData.password !== password) {
+                showToast("Contraseña incorrecta");
+                return;
+            }
+            currentUser = { ...userData, id };
+            localStorage.setItem("vibraUserSession", JSON.stringify(currentUser));
+            authModal.classList.remove("active");
+            updatePresence();
+            updateUI();
+            initInboxList();
+            showToast("¡Bienvenido/a de nuevo! ✨");
+        } else {
+            showToast("Usuario no encontrado. Regístrate primero.");
+        }
     });
 
     function updatePresence() {
@@ -195,8 +257,7 @@ function initApp() {
 
                 const card = document.createElement("div");
                 card.className = "feed-card";
-                
-                // Obtener foto en tiempo real del usuario registrado
+
                 getDoc(doc(db, "users", post.userId)).then(userSnap => {
                     let photoUrl = post.userPhoto;
                     if (userSnap.exists()) {
@@ -240,7 +301,7 @@ function initApp() {
         });
     }
 
-    // LISTA DE PERSONAS REGISTRADAS (SOLO USUARIOS REALES)
+    // LISTA DE PERSONAS REGISTRADAS
     function initPeopleList() {
         const q = query(collection(db, "users"), limit(50));
         onSnapshot(q, (snapshot) => {
@@ -428,7 +489,7 @@ function initApp() {
         chatInput.value = "";
     }
 
-    // ABRIR EDITAR PERFIL CON AVATAR INTERACTIVO
+    // ABRIR EDITAR PERFIL
     const editModal = document.getElementById("editProfileModal");
     const editPhotoFileInput = document.getElementById("editPhotoFile");
 
@@ -441,7 +502,6 @@ function initApp() {
         });
     });
 
-    // CAMBIAR VISTA PREVIA AL ELEGIR ARCHIVO
     editPhotoFileInput.addEventListener("change", async () => {
         const previewImg = await processImageFile(editPhotoFileInput);
         if (previewImg) {
@@ -451,7 +511,7 @@ function initApp() {
 
     document.getElementById("closeEditProfile").addEventListener("click", () => editModal.classList.remove("active"));
 
-    // GUARDAR PERFIL Y ACTUALIZAR FIRESTORE
+    // GUARDAR PERFIL
     document.getElementById("btnSaveProfile").addEventListener("click", async () => {
         const newPhotoBase64 = await processImageFile(editPhotoFileInput);
 
