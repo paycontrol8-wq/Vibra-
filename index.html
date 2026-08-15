@@ -156,32 +156,68 @@
             </div>
         </div>
 
-        <!-- MODAL AUTH / REGISTRO -->
+        <!-- MODAL AUTH CON PESTAÑAS Y AVATAR INTERACTIVO -->
         <div class="modal-overlay" id="authModal">
             <div class="modal auth-card">
                 <button class="modal-close" id="closeAuthModal"><i class="fa-solid fa-xmark"></i></button>
                 <span class="modal-icon">🌈</span>
-                <h2>Únete a Vibra</h2>
-                <p style="font-size:12px; color:var(--text-soft); margin-bottom:15px;">Ingresa tus datos e imagen para conectarte</p>
                 
-                <div class="form-group">
-                    <label>Foto de Perfil (Opcional)</label>
-                    <input type="file" id="authPhotoFile" accept="image/*" class="card-input">
-                </div>
-                <div class="form-group">
-                    <label>Nombre o usuario</label>
-                    <input type="text" id="authName" class="card-input" placeholder="Ej: Alex">
-                </div>
-                <div class="form-group">
-                    <label>Correo Electrónico</label>
-                    <input type="email" id="authEmail" class="card-input" placeholder="correo@ejemplo.com">
-                </div>
-                <div class="form-group">
-                    <label>Pronombres</label>
-                    <input type="text" id="authPronouns" class="card-input" placeholder="Ej: Él/Ella/Elle" value="Él/Ella/Elle">
+                <div class="auth-tabs">
+                    <button class="auth-tab active" id="tabRegister">Registrarse</button>
+                    <button class="auth-tab" id="tabLogin">Iniciar Sesión</button>
                 </div>
 
-                <button class="primary-button" id="btnStartSession"><i class="fa-solid fa-arrow-right-to-bracket"></i> Entrar / Registrarse</button>
+                <!-- FORMULARIO REGISTRO -->
+                <div id="formRegisterContainer">
+                    <div class="edit-avatar-picker-container">
+                        <label for="authPhotoFile" class="edit-avatar-picker">
+                            <div class="avatar-box" id="authAvatarPreview">👤</div>
+                            <div class="edit-avatar-overlay">
+                                <i class="fa-solid fa-camera"></i>
+                            </div>
+                        </label>
+                        <span class="avatar-hint">Toca la foto para elegir avatar</span>
+                        <input type="file" id="authPhotoFile" accept="image/*" style="display: none;">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Nombre o usuario</label>
+                        <input type="text" id="authName" class="card-input" placeholder="Ej: Alex">
+                    </div>
+                    <div class="form-group">
+                        <label>Correo Electrónico</label>
+                        <input type="email" id="authEmail" class="card-input" placeholder="correo@ejemplo.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Contraseña</label>
+                        <input type="password" id="authPassword" class="card-input" placeholder="******">
+                    </div>
+                    <div class="form-group">
+                        <label>Pronombres</label>
+                        <input type="text" id="authPronouns" class="card-input" placeholder="Ej: Él/Ella/Elle" value="Él/Ella/Elle">
+                    </div>
+
+                    <button class="primary-button" id="btnStartSession" style="margin-top: 10px;">
+                        <i class="fa-solid fa-user-plus"></i> Crear Cuenta y Entrar
+                    </button>
+                </div>
+
+                <!-- FORMULARIO INICIAR SESIÓN -->
+                <div id="formLoginContainer" style="display: none;">
+                    <div class="form-group" style="margin-top: 15px;">
+                        <label>Correo Electrónico</label>
+                        <input type="email" id="loginEmail" class="card-input" placeholder="correo@ejemplo.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Contraseña</label>
+                        <input type="password" id="loginPassword" class="card-input" placeholder="******">
+                    </div>
+
+                    <button class="primary-button" id="btnSubmitLogin" style="margin-top: 15px;">
+                        <i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión
+                    </button>
+                </div>
+
             </div>
         </div>
 
