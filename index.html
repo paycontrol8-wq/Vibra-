@@ -63,14 +63,14 @@
                 </div>
             </section>
 
-            <!-- PERSONAS / CERCA -->
+            <!-- PERSONAS / GALERÍA RESPONSIVA -->
             <section class="page-section" id="peopleSection">
                 <div class="page-title">
                     <span class="small-label">🟢 EN LÍNEA & CERCA</span>
                     <h2>Personas</h2>
                     <p>Toca a una persona para enviarle un mensaje.</p>
                 </div>
-                <div class="ranking-list" id="peopleList"></div>
+                <div class="people-grid" id="peopleList"></div>
             </section>
 
             <!-- MENSAJES / BANDEJA DE ENTRADA -->
@@ -87,11 +87,13 @@
 
             <!-- PERFIL -->
             <section class="page-section" id="profileSection">
-                <div class="profile-header">
-                    <div class="profile-avatar avatar-box" id="profileAvatar">👤</div>
-                    <h2 id="profileName">Invitado</h2>
-                    <span id="profilePronouns" class="pronouns-tag">(Sin registro)</span>
-                    <p id="profileEmail" class="profile-email">Inicia sesión para personalizar tu perfil</p>
+                <div class="profile-card-modern">
+                    <div class="profile-avatar-container">
+                        <div class="profile-avatar avatar-box" id="profileAvatar">👤</div>
+                    </div>
+                    <h2 class="profile-user-name" id="profileName">Invitado</h2>
+                    <span id="profilePronouns" class="pronouns-badge">(Sin registro)</span>
+                    <p id="profileEmail" class="profile-email-text">Inicia sesión para personalizar tu perfil</p>
                     
                     <div class="profile-actions-column">
                         <button class="primary-button" id="btnProfileLoginToggle" style="display:none;">
@@ -115,7 +117,7 @@
 
         </main>
 
-        <!-- NAV INFERIOR CON MEJOR ESTILO -->
+        <!-- NAV INFERIOR -->
         <nav class="bottom-nav">
             <button class="nav-item active" data-section="home">
                 <i class="fa-solid fa-house"></i>
@@ -163,7 +165,7 @@
                 <p style="font-size:12px; color:var(--text-soft); margin-bottom:15px;">Ingresa tus datos e imagen para conectarte</p>
                 
                 <div class="form-group">
-                    <label>Foto de Perfil (Gratis)</label>
+                    <label>Foto de Perfil (Opcional)</label>
                     <input type="file" id="authPhotoFile" accept="image/*" class="card-input">
                 </div>
                 <div class="form-group">
@@ -183,16 +185,24 @@
             </div>
         </div>
 
-        <!-- MODAL EDITAR PERFIL -->
+        <!-- MODAL EDITAR PERFIL MEJORADO -->
         <div class="modal-overlay" id="editProfileModal">
             <div class="modal">
                 <button class="modal-close" id="closeEditProfile"><i class="fa-solid fa-xmark"></i></button>
                 <span class="modal-icon">✨</span>
                 <h2>Editar tu Perfil</h2>
-                <div class="form-group">
-                    <label>Cambiar Foto de Perfil</label>
-                    <input type="file" id="editPhotoFile" accept="image/*" class="card-input">
+                
+                <div class="edit-avatar-picker-container">
+                    <label for="editPhotoFile" class="edit-avatar-picker" id="editAvatarPicker">
+                        <div class="avatar-box" id="editAvatarPreview">👤</div>
+                        <div class="edit-avatar-overlay">
+                            <i class="fa-solid fa-camera"></i>
+                        </div>
+                    </label>
+                    <span class="avatar-hint">Toca la foto para cambiarla</span>
+                    <input type="file" id="editPhotoFile" accept="image/*" style="display: none;">
                 </div>
+
                 <div class="form-group">
                     <label>Nombre o Apodo</label>
                     <input type="text" id="inputEditName" class="card-input">
@@ -201,7 +211,9 @@
                     <label>Pronombres</label>
                     <input type="text" id="inputEditPronouns" class="card-input">
                 </div>
-                <button class="primary-button" id="btnSaveProfile"><i class="fa-solid fa-floppy-disk"></i> Guardar Cambios</button>
+                <button class="primary-button" id="btnSaveProfile" style="margin-top: 10px;">
+                    <i class="fa-solid fa-floppy-disk"></i> Guardar Cambios
+                </button>
             </div>
         </div>
 
