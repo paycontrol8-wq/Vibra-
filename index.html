@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0b0b12">
+    <meta name="description" content="Vibra - Juega, vota, descubre y comparte.">
+    <title>Vibra | Juega, vota y descubre</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+    <!-- Firebase SDK Modular (v12) -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
+      import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, deleteDoc, onSnapshot, query, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyBagjN_B8NL9kw9OX9EJvhGJZs19IbD79Q",
+        authDomain: "vibra-e4418.firebaseapp.com",
+        projectId: "vibra-e4418",
+        storageBucket: "vibra-e4418.firebasestorage.app",
+        messagingSenderId: "6468221895",
+        appId: "1:6468221895:web:b9ef625e1bbd934f1f77e2"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      window.db = getFirestore(app);
+      
+      // Exportamos funciones de Firestore para usarlas limpiamente en script.js
+      window.FB_Firestore = {
+          collection, doc, setDoc, getDoc, getDocs, addDoc, deleteDoc, onSnapshot, query, orderBy, limit, serverTimestamp
+      };
+    </script>
+
+    <!-- CSS principal -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="app">
+        <!-- HEADER -->
+        <header class="app-header">
+            <div class="brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-bolt"></i>
+                </div>
+                <div class="brand-info">
+                    <h1>Vibra</h1>
+                    <span>Tu mundo, tu vibra</span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="icon-button" id="btnNotifications" aria-label="Notificaciones">
+                    <i class="fa-regular fa-bell"></i>
+                    <span class="notification-dot"></span>
+                </button>
+                <button class="profile-mini" id="btnProfileHeader" aria-label="Abrir perfil">
+                    <span id="headerAvatar">😎</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- CONTENIDO PRINCIPAL -->
+        <main class="main-content">
+
+            <!-- SECCIÓN INICIO -->
+            <section class="page-section active" id="homeSection">
+                <div class="welcome-area">
+                    <div>
+                        <span class="small-label">¡Hola! 👋</span>
+                        <h2>¿Cuál es tu <span class="gradient-text">Vibra</span> hoy?</h2>
+                    </div>
+                    <div class="level-badge">
+                        <i class="fa-solid fa-star"></i>
+                        <span id="userLevel">Nivel 1</span>
+                    </div>
+                </div>
+
+                <!-- VIBRA DEL DÍA -->
+                <article class="daily-vibe-card">
+                    <div class="card-glow"></div>
+                    <div class="daily-vibe-header">
+                        <span class="section-tag"><i class="fa-solid fa-fire"></i> VIBRA DEL DÍA</span>
+                        <span class="live-tag">EN VIVO</span>
+                    </div>
+                    <div class="daily-vibe-content">
+                        <span class="question-icon">❓</span>
+                        <h3 id="dailyQuestion">¿Quién de tus amigos sobreviviría más tiempo en un apocalipsis zombie?</h3>
+                        <p>Vota y descubre qué piensa la comunidad en tiempo real.</p>
+                    </div>
+                    <button class="primary-button" id="btnVoteDaily">
+                        <i class="fa-solid fa-bolt"></i> Votar ahora
+                    </button>
+                </article>
+
+                <!-- ESTADÍSTICAS -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon purple"><i class="fa-solid fa-bolt"></i></div>
+                        <div><strong id="totalPoints">0</strong><span>Puntos</span></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon orange"><i class="fa-solid fa-fire"></i></div>
+                        <div><strong id="streakCount">0</strong><span>Racha</span></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon blue"><i class="fa-solid fa-trophy"></i></div>
+                        <div><strong id="winsCount">0</strong><span>Victorias</span></div>
+                    </div>
+                </div>
+
+                <!-- ACCIONES RÁPIDAS -->
+                <div class="section-heading">
+                    <div>
+                        <span class="small-label">DESCUBRE</span>
+                        <h3>¿Qué quieres hacer?</h3>
+                    </div>
+                </div>
+
+                <div class="quick-actions">
+                    <button class="quick-card" data-section="play"><div class="quick-icon purple"><i class="fa-solid fa-gamepad"></i></div><strong>Jugar</strong><span>Pon a prueba tu mente</span></button>
+                    <button class="quick-card" data-section="challenges"><div class="quick-icon orange"><i class="fa-solid fa-fire"></i></div><strong>Retos</strong><span>Supera desafíos diarios</span></button>
+                    <button class="quick-card" data-section="ranking"><div class="quick-icon blue"><i class="fa-solid fa-ranking-star"></i></div><strong>Ranking</strong><span>Mira quién lidera</span></button>
+                    <button class="quick-card" data-section="profile"><div class="quick-icon green"><i class="fa-solid fa-user"></i></div><strong>Mi perfil</strong><span>Mira tus estadísticas</span></button>
+                </div>
+
+                <!-- PREGUNTA POPULAR -->
+                <div class="section-heading popular-heading">
+                    <div>
+                        <span class="small-label">🔥 ESTÁ EN TENDENCIA</span>
+                        <h3>Pregunta popular</h3>
+                    </div>
+                    <button class="text-button" data-section="play">Ver más <i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+
+                <article class="popular-card">
+                    <div class="popular-top">
+                        <span class="category-badge">👥 AMIGOS</span>
+                        <span class="vote-count"><i class="fa-solid fa-chart-simple"></i> <span id="popularTotalVotes">2.4K</span> votos</span>
+                    </div>
+                    <h3>¿Quién es más probable que se vuelva millonario primero?</h3>
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button class="secondary-button" id="btnPopularVote" style="margin-top:0; flex: 1;">
+                            <i class="fa-solid fa-check"></i> Participar
+                        </button>
+                        <button class="secondary-button" id="btnLikePopular" style="margin-top:0; padding: 6px 14px; background: rgba(255,255,255,0.05);">
+                            <i class="fa-regular fa-heart" id="likeIcon"></i> <span id="likeCount">2,400</span>
+                        </button>
+                    </div>
+                </article>
+            </section>
+
+            <!-- SECCIÓN JUGAR -->
+            <section class="page-section" id="playSection">
+                <div class="page-title">
+                    <span class="small-label">🎮 DIVERSIÓN</span>
+                    <h2>Jugar</h2>
+                    <p>Elige una categoría y demuestra lo que sabes en tiempo real.</p>
+                </div>
+
+                <div class="game-grid">
+                    <button class="game-card" data-game="questions"><span class="game-emoji">🧠</span><strong>Preguntas</strong><small>Pon a prueba tu conocimiento</small></button>
+                    <button class="game-card" data-game="battle"><span class="game-emoji">⚔️</span><strong>Batalla</strong><small>Compite contra otro jugador</small></button>
+                    <button class="game-card" data-game="truefalse"><span class="game-emoji">✅</span><strong>Verdadero o falso</strong><small>¿Cuánto puedes acertar?</small></button>
+                    <button class="game-card" data-game="guess"><span class="game-emoji">🤔</span><strong>Adivina</strong><small>Descubre la respuesta</small></button>
+                </div>
+
+                <!-- LOBBY DE BATALLAS -->
+                <div id="battleLobbyView" style="display: none;">
+                    <div class="page-title" style="margin-top: 10px;">
+                        <span class="small-label">⚔️ DUELO EN VIVO</span>
+                        <h2>Lobby de Batallas</h2>
+                        <p>Crea una sala o un reto multijugador sincronizado por Firebase.</p>
+                    </div>
+                    <div class="quick-actions" style="margin-bottom: 20px;">
+                        <button class="primary-button" id="btnCreateBattle" style="margin-top:0;">
+                            <i class="fa-solid fa-plus"></i> Crear Sala de Batalla
+                        </button>
+                        <button class="secondary-button" id="btnBackToGames" style="margin-top:0;">
+                            <i class="fa-solid fa-arrow-left"></i> Volver a Juegos
+                        </button>
+                    </div>
+                    <div class="section-heading">
+                        <div>
+                            <span class="small-label">SALAS ACTIVAS</span>
+                            <h3>Salas en línea</h3>
+                        </div>
+                    </div>
+                    <div class="ranking-list" id="battleRoomsList">
+                        <!-- Las salas de Firebase se cargarán aquí -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECCIÓN RETOS -->
+            <section class="page-section" id="challengesSection">
+                <div class="page-title">
+                    <span class="small-label">🔥 CADA DÍA</span>
+                    <h2>Retos</h2>
+                    <p>Completa desafíos diarios y gana puntos.</p>
+                </div>
+                <article class="challenge-card featured">
+                    <div class="challenge-icon">🔥</div>
+                    <div class="challenge-info">
+                        <span>RETO DEL DÍA</span>
+                        <h3>Consigue 3 votos hoy</h3>
+                        <div class="challenge-progress">
+                            <div><span id="challengeProgress">0 / 3</span><span>+50 XP</span></div>
+                            <div class="progress-track"><div class="progress-fill" id="challengeBar"></div></div>
+                        </div>
+                    </div>
+                </article>
+            </section>
+
+            <!-- SECCIÓN RANKING -->
+            <section class="page-section" id="rankingSection">
+                <div class="page-title">
+                    <span class="small-label">🏆 COMPITE</span>
+                    <h2>Ranking</h2>
+                    <p>Tabla de clasificación global en tiempo real.</p>
+                </div>
+                <div class="ranking-tabs">
+                    <button class="ranking-tab active">Global</button>
+                </div>
+                <div class="ranking-list" id="rankingList">
+                    <!-- Se llena dinámicamente desde Firestore -->
+                </div>
+            </section>
+
+            <!-- SECCIÓN PERFIL -->
+            <section class="page-section" id="profileSection">
+                <div class="profile-header">
+                    <div class="profile-avatar" id="profileAvatar">😎</div>
+                    <h2 id="profileName">Jugador Vibra</h2>
+                    <span>Nivel <strong id="profileLevel">1</strong></span>
+                    <button class="secondary-button" id="btnEditName" style="margin-top: 10px; padding: 5px 12px; font-size: 12px;">Editar Nombre</button>
+                </div>
+                <div class="profile-xp">
+                    <div><span>Experiencia</span><strong id="profileXP">0 / 100 XP</strong></div>
+                    <div class="xp-track"><div class="xp-fill" id="xpBar"></div></div>
+                </div>
+                <div class="profile-stats">
+                    <div><strong id="profilePoints">0</strong><span>Puntos</span></div>
+                    <div><strong id="profileVotes">0</strong><span>Votos</span></div>
+                    <div><strong id="profileWins">0</strong><span>Victorias</span></div>
+                </div>
+            </section>
+        </main>
+
+        <!-- NAVEGACIÓN INFERIOR -->
+        <nav class="bottom-nav" id="bottomNav">
+            <button class="nav-item active" data-section="home"><i class="fa-solid fa-house"></i><span>Inicio</span></button>
+            <button class="nav-item" data-section="play"><i class="fa-solid fa-gamepad"></i><span>Jugar</span></button>
+            <button class="nav-item nav-main" data-section="challenges"><div class="nav-main-icon"><i class="fa-solid fa-fire"></i></div><span>Retos</span></button>
+            <button class="nav-item" data-section="ranking"><i class="fa-solid fa-trophy"></i><span>Ranking</span></button>
+            <button class="nav-item" data-section="profile"><i class="fa-solid fa-user"></i><span>Perfil</span></button>
+        </nav>
+
+        <!-- MODAL DE VOTACIÓN -->
+        <div class="modal-overlay" id="voteModal">
+            <div class="modal">
+                <button class="modal-close" id="closeVoteModal"><i class="fa-solid fa-xmark"></i></button>
+                <span class="modal-icon">🔥</span>
+                <span class="small-label">VIBRA DEL DÍA</span>
+                <h2>¿Quién sobreviviría más tiempo?</h2>
+                <p>Elige una opción.</p>
+                <div class="vote-options">
+                    <button class="vote-option" data-choice="Yo"><span>😎</span><strong>Yo</strong></button>
+                    <button class="vote-option" data-choice="Mi mejor amigo"><span>😂</span><strong>Mi mejor amigo</strong></button>
+                    <button class="vote-option" data-choice="La persona más inteligente"><span>🧠</span><strong>La persona más inteligente</strong></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL DE JUEGOS GENERALES -->
+        <div class="modal-overlay" id="genericGameModal">
+            <div class="modal">
+                <button class="modal-close" id="closeGenericModal"><i class="fa-solid fa-xmark"></i></button>
+                <span class="modal-icon" id="gameModalIcon">🧠</span>
+                <h2 id="gameModalTitle">Pregunta de Trivia</h2>
+                <p id="gameModalQuestion" style="margin: 15px 0; color: #fff; font-size: 15px;"></p>
+                <div class="vote-options" id="gameModalOptionsContainer"></div>
+            </div>
+        </div>
+
+        <!-- MODAL DE NOTIFICACIONES -->
+        <div class="modal-overlay" id="notificationsModal">
+            <div class="modal notifications-modal">
+                <button class="modal-close" id="closeNotifications"><i class="fa-solid fa-xmark"></i></button>
+                <span class="modal-icon">🔔</span>
+                <h2>Notificaciones</h2>
+                <div class="notifications-list" style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px; text-align: left;">
+                    <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border-left: 3px solid #8b5cf6;">
+                        <strong style="font-size: 13px; display: block; color: #fff;">🔥 Base de datos sincronizada</strong>
+                        <small style="color: var(--text-muted);">Conectado en tiempo real con Firebase Firestore.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TOAST -->
+        <div class="toast" id="toast">
+            <i class="fa-solid fa-circle-check"></i>
+            <span id="toastMessage">¡Listo!</span>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
