@@ -48,7 +48,6 @@ function initApp() {
 
     document.getElementById("closeAuthModal").addEventListener("click", () => authModal.classList.remove("active"));
 
-    // CONVERTIR IMAGEN A BASE64 (GRATIS)
     function processImageFile(fileInput) {
         return new Promise((resolve) => {
             const file = fileInput.files[0];
@@ -113,7 +112,6 @@ function initApp() {
     document.querySelectorAll(".nav-item:not(.nav-add-btn)").forEach(i => i.addEventListener("click", () => navigateTo(i.dataset.section)));
     document.getElementById("btnProfileHeader").addEventListener("click", () => navigateTo("profile"));
 
-    // AVATAR RENDER
     function renderAvatar(element, photoUrl) {
         if (photoUrl) {
             element.innerHTML = `<img src="${photoUrl}" alt="Avatar">`;
@@ -153,7 +151,7 @@ function initApp() {
 
     document.getElementById("btnProfileLoginToggle").addEventListener("click", () => authModal.classList.add("active"));
 
-    // CREAR PUBLICACIÓN CON BOTÓN MAS (+)
+    // CREAR PUBLICACIÓN
     document.getElementById("btnOpenCreatePost").addEventListener("click", () => {
         requireAuth(() => {
             createPostModal.classList.add("active");
@@ -179,7 +177,7 @@ function initApp() {
         showToast("¡Publicación realizada! 🚀");
     });
 
-    // FEED CON BOTÓN DE MENSAJE DIRECTO EN CADA PUBLICACIÓN
+    // FEED CON FOTOS EN TIEMPO REAL DESDE COLECCIÓN DE USUARIOS
     function initFeed() {
         const q = query(collection(db, "posts"), orderBy("createdAt", "desc"), limit(25));
         onSnapshot(q, (snapshot) => {
@@ -197,80 +195,119 @@ function initApp() {
 
                 const card = document.createElement("div");
                 card.className = "feed-card";
-                card.innerHTML = `
-                    <div class="feed-header">
-                        <div class="feed-user-left">
-                            <div class="mini-avatar avatar-box">${post.userPhoto ? `<img src="${post.userPhoto}">` : '👤'}</div>
-                            <div class="feed-user-info">
-                                <strong>${escapeHTML(post.userName)} <small>(${escapeHTML(post.userPronouns || "")})</small></strong>
-                                <small>Comunidad Vibra</small>
+                
+                // Obtener foto en tiempo real del usuario registrado
+                getDoc(doc(db, "users", post.userId)).then(userSnap => {
+                    let photoUrl = post.userPhoto;
+                    if (userSnap.exists()) {
+                        const userData = userSnap.data();
+                        if (userData.photo) photoUrl = userData.photo;
+                    }
+
+                    card.innerHTML = `
+                        <div class="feed-header">
+                            <div class="feed-user-left">
+                                <div class="mini-avatar avatar-box">
+                                    ${photoUrl ? `<img src="${photoUrl}" alt="${escapeHTML(post.userName)}">` : '👤'}
+                                </div>
+                                <div class="feed-user-info">
+                                    <strong>${escapeHTML(post.userName)} <small>(${escapeHTML(post.userPronouns || "")})</small></strong>
+                                    <small>Comunidad Vibra</small>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="feed-content">${escapeHTML(post.text)}</div>
-                    ${!isMyPost ? `
-                    <div class="feed-actions">
-                        <button class="btn-msg-user btn-feed-msg">
-                            <i class="fa-solid fa-paper-plane"></i> Enviar mensaje
-                        </button>
-                    </div>` : ''}
-                `;
+                        <div class="feed-content">${escapeHTML(post.text)}</div>
+                        ${!isMyPost ? `
+                        <div class="feed-actions">
+                            <button class="btn-msg-user btn-feed-msg">
+                                <i class="fa-solid fa-paper-plane"></i> Enviar mensaje
+                            </button>
+                        </div>` : ''}
+                    `;
 
-                if (!isMyPost) {
-                    const btnMsg = card.querySelector(".btn-feed-msg");
-                    btnMsg.addEventListener("click", () => {
-                        requireAuth(() => openChatModal(post.userId, post.userName, post.userPhoto, true));
-                    });
-                }
+                    if (!isMyPost) {
+                        const btnMsg = card.querySelector(".btn-feed-msg");
+                        if (btnMsg) {
+                            btnMsg.addEventListener("click", () => {
+                                requireAuth(() => openChatModal(post.userId, post.userName, photoUrl, true));
+                            });
+                        }
+                    }
+                });
 
                 feedList.appendChild(card);
             });
         });
     }
 
-    // LISTA DE PERSONAS
+    // LISTA DE PERSONAS REGISTRADAS (SOLO USUARIOS REALES)
     function initPeopleList() {
-        const q = query(collection(db, "users"), orderBy("lastSeen", "desc"), limit(30));
+        const q = query(collection(db, "users"), limit(50));
         onSnapshot(q, (snapshot) => {
             const list = document.getElementById("peopleList");
             list.innerHTML = "";
 
             const now = Date.now();
+            const myLat = currentUser ? currentUser.lat : userCoords.lat;
+            const myLng = currentUser ? currentUser.lng : userCoords.lng;
+
+            let usersList = [];
 
             snapshot.forEach((docSnap) => {
                 const p = docSnap.data();
                 const pId = docSnap.id;
                 
-                const isOnline = p.lastSeen && (now - p.lastSeen < 120000);
-                const statusDot = isOnline ? `<span class="online-dot"></span>` : `<span class="offline-dot"></span>`;
-                const statusText = isOnline ? `<span style="color:var(--green); font-weight:700;">En línea</span>` : `Hace un momento`;
+                if (!p || !p.name || p.name.trim() === "") return;
 
-                const myLat = currentUser ? currentUser.lat : userCoords.lat;
-                const myLng = currentUser ? currentUser.lng : userCoords.lng;
-                const distanceKm = calculateDistance(myLat, myLng, p.lat || myLat, p.lng || myLng);
-                
+                const nameLower = p.name.toLowerCase().trim();
+                if (
+                    nameLower.startsWith("jugador") || 
+                    nameLower.startsWith("persona") || 
+                    nameLower.includes("invitado") ||
+                    !p.email
+                ) {
+                    return;
+                }
+
+                const distanceKmNum = calculateRawDistance(myLat, myLng, p.lat || myLat, p.lng || myLng);
+                const isOnline = p.lastSeen && (now - p.lastSeen < 120000);
+
+                usersList.push({
+                    id: pId,
+                    data: p,
+                    distance: distanceKmNum,
+                    isOnline: isOnline
+                });
+            });
+
+            usersList.sort((a, b) => a.distance - b.distance);
+
+            if (usersList.length === 0) {
+                list.innerHTML = '<div class="empty-state">No hay usuarios registrados aún.</div>';
+                return;
+            }
+
+            usersList.forEach(item => {
+                const p = item.data;
+                const pId = item.id;
                 const isMe = currentUser && pId === currentUser.id;
-                const distanceText = isMe ? "Tú" : `A ${distanceKm} km`;
 
                 const card = document.createElement("div");
-                card.className = "user-card-item";
+                card.className = "person-card";
                 card.innerHTML = `
-                    <div class="user-card-left">
-                        <div class="avatar-wrapper">
-                            <div class="ranking-avatar avatar-box">${p.photo ? `<img src="${p.photo}">` : '👤'}</div>
-                            ${statusDot}
+                    <div class="person-avatar-wrapper">
+                        <div class="person-avatar avatar-box">
+                            ${p.photo ? `<img src="${p.photo}" alt="${escapeHTML(p.name)}">` : '👤'}
                         </div>
-                        <div class="user-card-info">
-                            <strong>${escapeHTML(p.name || "Usuario")} <small>(${escapeHTML(p.pronouns || "")})</small></strong>
-                            <small>${statusText} • ${distanceText}</small>
-                        </div>
+                        <span class="status-indicator ${item.isOnline ? 'online' : 'offline'}"></span>
                     </div>
-                    ${!isMe ? `<button class="btn-msg-user"><i class="fa-solid fa-comment"></i> Mensaje</button>` : ''}
+                    <div class="person-name">${escapeHTML(p.name)}</div>
+                    <div class="person-dist">${isMe ? "Tú" : (item.distance < 1 ? "< 1 km" : item.distance.toFixed(1) + " km")}</div>
                 `;
 
                 card.addEventListener("click", () => {
                     if (!isMe) {
-                        requireAuth(() => openChatModal(pId, p.name, p.photo, isOnline));
+                        requireAuth(() => openChatModal(pId, p.name, p.photo, item.isOnline));
                     }
                 });
 
@@ -279,14 +316,11 @@ function initApp() {
         });
     }
 
-    // BANDEJA DE ENTRADA: RESPONDE HACIENDO CLIC EN CUALQUIER CONVERSACIÓN
+    // BANDEJA DE ENTRADA
     function initInboxList() {
         const inboxList = document.getElementById("inboxList");
         if (!currentUser) {
-            inboxList.innerHTML = `
-                <div class="empty-state">
-                    <p>Debes iniciar sesión para ver tus mensajes privados.</p>
-                </div>`;
+            inboxList.innerHTML = `<div class="empty-state"><p>Debes iniciar sesión para ver tus mensajes privados.</p></div>`;
             return;
         }
 
@@ -318,7 +352,6 @@ function initApp() {
                                 <i class="fa-solid fa-chevron-right" style="color:var(--text-muted); font-size:12px;"></i>
                             `;
                             
-                            // ABRIR CHAT DIRECTO AL HACER CLIC
                             card.addEventListener("click", () => {
                                 openChatModal(otherUserId, otherUser.name, otherUser.photo, true);
                             });
@@ -395,21 +428,32 @@ function initApp() {
         chatInput.value = "";
     }
 
-    // EDITAR PERFIL
+    // ABRIR EDITAR PERFIL CON AVATAR INTERACTIVO
     const editModal = document.getElementById("editProfileModal");
+    const editPhotoFileInput = document.getElementById("editPhotoFile");
+
     document.getElementById("btnOpenEditProfile").addEventListener("click", () => {
         requireAuth(() => {
             document.getElementById("inputEditName").value = currentUser.name;
             document.getElementById("inputEditPronouns").value = currentUser.pronouns;
+            renderAvatar(document.getElementById("editAvatarPreview"), currentUser.photo);
             editModal.classList.add("active");
         });
     });
 
+    // CAMBIAR VISTA PREVIA AL ELEGIR ARCHIVO
+    editPhotoFileInput.addEventListener("change", async () => {
+        const previewImg = await processImageFile(editPhotoFileInput);
+        if (previewImg) {
+            renderAvatar(document.getElementById("editAvatarPreview"), previewImg);
+        }
+    });
+
     document.getElementById("closeEditProfile").addEventListener("click", () => editModal.classList.remove("active"));
 
+    // GUARDAR PERFIL Y ACTUALIZAR FIRESTORE
     document.getElementById("btnSaveProfile").addEventListener("click", async () => {
-        const editPhotoFile = document.getElementById("editPhotoFile");
-        const newPhotoBase64 = await processImageFile(editPhotoFile);
+        const newPhotoBase64 = await processImageFile(editPhotoFileInput);
 
         currentUser.name = document.getElementById("inputEditName").value.trim() || currentUser.name;
         currentUser.pronouns = document.getElementById("inputEditPronouns").value.trim() || currentUser.pronouns;
@@ -419,7 +463,7 @@ function initApp() {
         updatePresence();
         updateUI();
         editModal.classList.remove("active");
-        showToast("¡Perfil actualizado con éxito!");
+        showToast("¡Perfil actualizado con éxito! ✨");
     });
 
     // CERRAR SESIÓN
@@ -448,8 +492,8 @@ function initApp() {
         }
     });
 
-    function calculateDistance(lat1, lon1, lat2, lon2) {
-        if (!lat1 || !lon1 || !lat2 || !lon2) return "1.0";
+    function calculateRawDistance(lat1, lon1, lat2, lon2) {
+        if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
         const R = 6371;
         const dLat = (lat2 - lat1) * Math.PI / 180;
         const dLon = (lon2 - lon1) * Math.PI / 180;
@@ -457,8 +501,7 @@ function initApp() {
                   Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
                   Math.sin(dLon/2) * Math.sin(dLon/2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        const d = R * c;
-        return d < 1 ? "Menos de 1" : d.toFixed(1);
+        return R * c;
     }
 
     function escapeHTML(str) {
