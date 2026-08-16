@@ -14,6 +14,7 @@ function initApp() {
     let currentUser = JSON.parse(localStorage.getItem("vibraUserSession") || "null");
     let activeChatTargetId = null;
     let chatUnsubscribe = null;
+    let globalMessagesUnsubscribe = null;
 
     let userCoords = { lat: 7.1193, lng: -73.1227 };
     if (navigator.geolocation) {
@@ -29,12 +30,71 @@ function initApp() {
     if (currentUser) {
         updatePresence();
         setInterval(updatePresence, 30000);
+        initGlobalMessageListener();
     }
 
     updateUI();
     initFeed();
     initPeopleList();
     initInboxList();
+
+    // Sistema de Alerta con Sonido Nativo
+    function playNotificationSound() {
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+            oscillator.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1); // A5
+            
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 0.3);
+        } catch (e) {
+            // Prevenir bloqueos de autoplay del navegador
+        }
+    }
+
+    // Escucha en tiempo real de mensajes nuevos para notificar con sonido y badge
+    function initGlobalMessageListener() {
+        if (!currentUser) return;
+        if (globalMessagesUnsubscribe) globalMessagesUnsubscribe();
+
+        const qChats = query(collection(db, "chats"));
+        globalMessagesUnsubscribe = onSnapshot(qChats, (snapshot) => {
+            snapshot.forEach(docSnap => {
+                const chatId = docSnap.id;
+                if (chatId.includes(currentUser.id) && chatId !== currentUser.id) {
+                    const qMsgs = query(collection(db, "chats", chatId, "messages"), orderBy("createdAt", "desc"), limit(1));
+                    
+                    onSnapshot(qMsgs, (msgSnap) => {
+                        if (!msgSnap.empty) {
+                            const latestMsg = msgSnap.docs[0].data();
+                            
+                            if (latestMsg.senderId !== currentUser.id) {
+                                const msgTime = latestMsg.createdAt?.toMillis ? latestMsg.createdAt.toMillis() : Date.now();
+                                
+                                if (Date.now() - msgTime < 6000) {
+                                    playNotificationSound();
+                                    showToast("💬 ¡Nuevo mensaje recibido!");
+                                    
+                                    const badge = document.getElementById("navMsgBadge");
+                                    if (badge) badge.style.display = "block";
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+        });
+    }
 
     function requireAuth(actionCallback) {
         if (!currentUser) {
@@ -78,7 +138,6 @@ function initApp() {
         formRegister.style.display = "none";
     });
 
-    // CAMBIAR AVATAR EN AUTH FORMULARIO
     const authPhotoInput = document.getElementById("authPhotoFile");
     authPhotoInput.addEventListener("change", async () => {
         const previewImg = await processImageFile(authPhotoInput);
@@ -87,7 +146,7 @@ function initApp() {
         }
     });
 
-    // ACCIÓN: CREAR CUENTA / REGISTRO DIRECTO
+    // REGISTRO
     document.getElementById("btnStartSession").addEventListener("click", async () => {
         const name = document.getElementById("authName").value.trim();
         const email = document.getElementById("authEmail").value.trim();
@@ -109,10 +168,11 @@ function initApp() {
         updatePresence();
         updateUI();
         initInboxList();
+        initGlobalMessageListener();
         showToast("¡Cuenta creada y sesión iniciada! ✨");
     });
 
-    // ACCIÓN: INICIAR SESIÓN SOLO CON CORREO Y CONTRASEÑA
+    // INICIAR SESIÓN
     document.getElementById("btnSubmitLogin").addEventListener("click", async () => {
         const email = document.getElementById("loginEmail").value.trim();
         const password = document.getElementById("loginPassword").value.trim();
@@ -138,6 +198,7 @@ function initApp() {
             updatePresence();
             updateUI();
             initInboxList();
+            initGlobalMessageListener();
             showToast("¡Bienvenido/a de nuevo! ✨");
         } else {
             showToast("Usuario no encontrado. Regístrate primero.");
@@ -168,6 +229,11 @@ function initApp() {
             item.classList.remove("active");
             if (item.dataset.section === sectionName) item.classList.add("active");
         });
+        
+        if (sectionName === "messages") {
+            document.getElementById("navMsgBadge").style.display = "none";
+        }
+
         window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
@@ -239,7 +305,7 @@ function initApp() {
         showToast("¡Publicación realizada! 🚀");
     });
 
-    // FEED CON FOTOS EN TIEMPO REAL DESDE COLECCIÓN DE USUARIOS
+    // FEED
     function initFeed() {
         const q = query(collection(db, "posts"), orderBy("createdAt", "desc"), limit(25));
         onSnapshot(q, (snapshot) => {
@@ -276,14 +342,12 @@ function initApp() {
                                     <small>Comunidad Vibra</small>
                                 </div>
                             </div>
+                            ${!isMyPost ? `
+                            <button class="btn-msg-user btn-feed-msg" title="Enviar mensaje" style="background:none; border:none; color:var(--primary-color); font-size:18px; cursor:pointer; padding:5px;">
+                                <i class="fa-solid fa-paper-plane"></i>
+                            </button>` : ''}
                         </div>
                         <div class="feed-content">${escapeHTML(post.text)}</div>
-                        ${!isMyPost ? `
-                        <div class="feed-actions">
-                            <button class="btn-msg-user btn-feed-msg">
-                                <i class="fa-solid fa-paper-plane"></i> Enviar mensaje
-                            </button>
-                        </div>` : ''}
                     `;
 
                     if (!isMyPost) {
@@ -301,7 +365,7 @@ function initApp() {
         });
     }
 
-    // LISTA DE PERSONAS REGISTRADAS
+    // LISTA DE PERSONAS ORDENADAS POR CERCANÍA
     function initPeopleList() {
         const q = query(collection(db, "users"), limit(50));
         onSnapshot(q, (snapshot) => {
@@ -377,7 +441,7 @@ function initApp() {
         });
     }
 
-    // BANDEJA DE ENTRADA
+    // BANDEJA DE ENTRADA ORDENADA, VISTA PREVIA Y DISTANCIA EN TIEMPO REAL
     function initInboxList() {
         const inboxList = document.getElementById("inboxList");
         if (!currentUser) {
@@ -388,44 +452,84 @@ function initApp() {
         const qChats = query(collection(db, "chats"), limit(50));
         onSnapshot(qChats, (snapshot) => {
             inboxList.innerHTML = "";
-            let chatCount = 0;
+            let chatsArray = [];
 
             snapshot.forEach(docSnap => {
                 const chatId = docSnap.id;
-
                 if (chatId.includes(currentUser.id)) {
-                    const otherUserId = chatId.replace(currentUser.id, "").replace("_", "");
-                    chatCount++;
+                    chatsArray.push({ chatId, data: docSnap.data() });
+                }
+            });
 
-                    getDoc(doc(db, "users", otherUserId)).then(userSnap => {
-                        if (userSnap.exists()) {
-                            const otherUser = userSnap.data();
-                            const card = document.createElement("div");
-                            card.className = "user-card-item";
+            chatsArray.sort((a, b) => {
+                const timeA = a.data.lastUpdate?.toMillis ? a.data.lastUpdate.toMillis() : 0;
+                const timeB = b.data.lastUpdate?.toMillis ? b.data.lastUpdate.toMillis() : 0;
+                return timeB - timeA;
+            });
+
+            if (chatsArray.length === 0) {
+                inboxList.innerHTML = '<div class="empty-state">Aún no tienes mensajes en tu bandeja de entrada.</div>';
+                return;
+            }
+
+            chatsArray.forEach(item => {
+                const chatId = item.chatId;
+                const otherUserId = chatId.replace(currentUser.id, "").replace("_", "");
+
+                getDoc(doc(db, "users", otherUserId)).then(userSnap => {
+                    if (userSnap.exists()) {
+                        const otherUser = userSnap.data();
+
+                        const myLat = currentUser.lat || userCoords.lat;
+                        const myLng = currentUser.lng || userCoords.lng;
+                        const otherLat = otherUser.lat || myLat;
+                        const otherLng = otherUser.lng || myLng;
+                        
+                        const distanceKmNum = calculateRawDistance(myLat, myLng, otherLat, otherLng);
+                        const distanceText = distanceKmNum < 1 ? `${Math.round(distanceKmNum * 1000)} metros` : `${distanceKmNum.toFixed(1)} km`;
+
+                        const qMsgs = query(collection(db, "chats", chatId, "messages"), orderBy("createdAt", "desc"), limit(1));
+                        onSnapshot(qMsgs, (msgSnap) => {
+                            let lastText = "Haz clic para conversar y responder";
+                            let isUnread = false;
+                            let textColor = "var(--text-muted)";
+
+                            if (!msgSnap.empty) {
+                                const lastMsg = msgSnap.docs[0].data();
+                                const snippet = lastMsg.text ? lastMsg.text.substring(0, 25) : "";
+                                lastText = lastMsg.senderId === currentUser.id ? `Tú: ${snippet}` : snippet;
+                                
+                                if (lastMsg.senderId !== currentUser.id) {
+                                    isUnread = true;
+                                    textColor = "#ffffff";
+                                }
+                            }
+
+                            let card = document.getElementById(`inbox_card_${chatId}`);
+                            if (!card) {
+                                card = document.createElement("div");
+                                card.className = "user-card-item";
+                                card.id = `inbox_card_${chatId}`;
+                                card.addEventListener("click", () => {
+                                    openChatModal(otherUserId, otherUser.name, otherUser.photo, true);
+                                });
+                                inboxList.appendChild(card);
+                            }
+
                             card.innerHTML = `
                                 <div class="user-card-left">
                                     <div class="ranking-avatar avatar-box">${otherUser.photo ? `<img src="${otherUser.photo}">` : '👤'}</div>
                                     <div class="user-card-info">
-                                        <strong>${escapeHTML(otherUser.name)}</strong>
-                                        <small style="color:#ff7597;">Haz clic para conversar y responder</small>
+                                        <strong>${escapeHTML(otherUser.name)} <small style="color:var(--primary-color); font-weight:normal;">• ${distanceText}</small></strong>
+                                        <small style="color: ${textColor}; font-weight: ${isUnread ? '700' : '400'};">${escapeHTML(lastText)}</small>
                                     </div>
                                 </div>
                                 <i class="fa-solid fa-chevron-right" style="color:var(--text-muted); font-size:12px;"></i>
                             `;
-                            
-                            card.addEventListener("click", () => {
-                                openChatModal(otherUserId, otherUser.name, otherUser.photo, true);
-                            });
-
-                            inboxList.appendChild(card);
-                        }
-                    });
-                }
+                        });
+                    }
+                });
             });
-
-            if (chatCount === 0) {
-                inboxList.innerHTML = '<div class="empty-state">Aún no tienes mensajes en tu bandeja de entrada.</div>';
-            }
         });
     }
 
@@ -489,7 +593,7 @@ function initApp() {
         chatInput.value = "";
     }
 
-    // ABRIR EDITAR PERFIL
+    // EDITAR PERFIL
     const editModal = document.getElementById("editProfileModal");
     const editPhotoFileInput = document.getElementById("editPhotoFile");
 
@@ -511,7 +615,6 @@ function initApp() {
 
     document.getElementById("closeEditProfile").addEventListener("click", () => editModal.classList.remove("active"));
 
-    // GUARDAR PERFIL
     document.getElementById("btnSaveProfile").addEventListener("click", async () => {
         const newPhotoBase64 = await processImageFile(editPhotoFileInput);
 
@@ -526,7 +629,6 @@ function initApp() {
         showToast("¡Perfil actualizado con éxito! ✨");
     });
 
-    // CERRAR SESIÓN
     document.getElementById("btnLogout").addEventListener("click", () => {
         localStorage.removeItem("vibraUserSession");
         currentUser = null;
@@ -535,7 +637,6 @@ function initApp() {
         showToast("Has cerrado sesión");
     });
 
-    // ELIMINAR CUENTA
     const deleteModal = document.getElementById("deleteConfirmModal");
     document.getElementById("btnDeleteAccount").addEventListener("click", () => deleteModal.classList.add("active"));
     document.getElementById("closeDeleteModal").addEventListener("click", () => deleteModal.classList.remove("active"));
