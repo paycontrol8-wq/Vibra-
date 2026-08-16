@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function initApp() {
-    const { doc, setDoc, getDoc, deleteDoc, addDoc, onSnapshot, query, orderBy, limit, serverTimestamp, collection } = window.FB;
+    const { doc, setDoc, getDoc, deleteDoc, addDoc, onSnapshot, query, orderBy, limit, serverTimestamp, collection, getDocs, where } = window.FB;
     const db = window.db;
 
     let currentUser = JSON.parse(localStorage.getItem("vibraUserSession") || "null");
@@ -305,10 +305,10 @@ function initApp() {
         showToast("¡Publicación realizada! 🚀");
     });
 
-    // FEED
+    // FEED (Con validación de existencia del usuario)
     function initFeed() {
         const q = query(collection(db, "posts"), orderBy("createdAt", "desc"), limit(25));
-        onSnapshot(q, (snapshot) => {
+        onSnapshot(q, async (snapshot) => {
             const feedList = document.getElementById("feedList");
             feedList.innerHTML = "";
 
@@ -317,51 +317,54 @@ function initApp() {
                 return;
             }
 
-            snapshot.forEach(docSnap => {
+            for (const docSnap of snapshot.docs) {
                 const post = docSnap.data();
+                
+                // Verificar si el usuario todavía existe en la base de datos
+                const userSnap = await getDoc(doc(db, "users", post.userId));
+                if (!userSnap.exists()) {
+                    // Si el usuario eliminó su cuenta, borramos la publicación huérfana automáticamente
+                    await deleteDoc(docSnap.ref);
+                    continue; // No renderizamos esta publicación
+                }
+
+                const userData = userSnap.data();
+                const photoUrl = userData.photo || post.userPhoto;
                 const isMyPost = currentUser && post.userId === currentUser.id;
 
                 const card = document.createElement("div");
                 card.className = "feed-card";
 
-                getDoc(doc(db, "users", post.userId)).then(userSnap => {
-                    let photoUrl = post.userPhoto;
-                    if (userSnap.exists()) {
-                        const userData = userSnap.data();
-                        if (userData.photo) photoUrl = userData.photo;
-                    }
-
-                    card.innerHTML = `
-                        <div class="feed-header">
-                            <div class="feed-user-left">
-                                <div class="mini-avatar avatar-box">
-                                    ${photoUrl ? `<img src="${photoUrl}" alt="${escapeHTML(post.userName)}">` : '👤'}
-                                </div>
-                                <div class="feed-user-info">
-                                    <strong>${escapeHTML(post.userName)} <small>(${escapeHTML(post.userPronouns || "")})</small></strong>
-                                    <small>Comunidad Vibra</small>
-                                </div>
+                card.innerHTML = `
+                    <div class="feed-header" style="position: relative;">
+                        <div class="feed-user-left">
+                            <div class="mini-avatar avatar-box">
+                                ${photoUrl ? `<img src="${photoUrl}" alt="${escapeHTML(userData.name)}">` : '👤'}
                             </div>
-                            ${!isMyPost ? `
-                            <button class="btn-msg-user btn-feed-msg" title="Enviar mensaje" style="background:none; border:none; color:var(--primary-color); font-size:18px; cursor:pointer; padding:5px;">
-                                <i class="fa-solid fa-paper-plane"></i>
-                            </button>` : ''}
+                            <div class="feed-user-info">
+                                <strong>${escapeHTML(userData.name)} <small>(${escapeHTML(userData.pronouns || "")})</small></strong>
+                                <small>Comunidad Vibra</small>
+                            </div>
                         </div>
-                        <div class="feed-content">${escapeHTML(post.text)}</div>
-                    `;
+                        ${!isMyPost ? `
+                        <button class="btn-msg-user btn-feed-msg" title="Enviar mensaje" style="background:none; border:none; color:var(--primary-color); font-size:18px; cursor:pointer; padding:5px; position: absolute; right: 0; top: 0;">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>` : ''}
+                    </div>
+                    <div class="feed-content">${escapeHTML(post.text)}</div>
+                `;
 
-                    if (!isMyPost) {
-                        const btnMsg = card.querySelector(".btn-feed-msg");
-                        if (btnMsg) {
-                            btnMsg.addEventListener("click", () => {
-                                requireAuth(() => openChatModal(post.userId, post.userName, photoUrl, true));
-                            });
-                        }
+                if (!isMyPost) {
+                    const btnMsg = card.querySelector(".btn-feed-msg");
+                    if (btnMsg) {
+                        btnMsg.addEventListener("click", () => {
+                            requireAuth(() => openChatModal(post.userId, userData.name, photoUrl, true));
+                        });
                     }
-                });
+                }
 
                 feedList.appendChild(card);
-            });
+            }
         });
     }
 
@@ -643,13 +646,24 @@ function initApp() {
 
     document.getElementById("btnConfirmDeleteAccount").addEventListener("click", async () => {
         if (currentUser) {
-            await deleteDoc(doc(db, "users", currentUser.id));
+            const userId = currentUser.id;
+
+            // 1. Eliminar el documento de usuario en la base de datos
+            await deleteDoc(doc(db, "users", userId));
+
+            // 2. Buscar y eliminar todas las publicaciones hechas por este usuario
+            const postsQuery = query(collection(db, "posts"), where("userId", "==", userId));
+            const postsSnapshot = await getDocs(postsQuery);
+            const deletePostPromises = postsSnapshot.docs.map(postDoc => deleteDoc(postDoc.ref));
+            await Promise.all(deletePostPromises);
+
+            // 3. Limpiar sesión local y actualizar interfaz
             localStorage.removeItem("vibraUserSession");
             currentUser = null;
             deleteModal.classList.remove("active");
             updateUI();
             initInboxList();
-            showToast("Tu cuenta ha sido eliminada.");
+            showToast("Tu cuenta, perfil y publicaciones han sido eliminados.");
         }
     });
 
