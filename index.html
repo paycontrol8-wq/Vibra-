@@ -132,9 +132,10 @@
                 <div class="add-icon-wrapper"><i class="fa-solid fa-plus"></i></div>
             </button>
             
-            <button class="nav-item" data-section="messages">
+            <button class="nav-item" data-section="messages" id="navMessagesBtn">
                 <i class="fa-solid fa-comments"></i>
                 <span>Mensajes</span>
+                <span class="nav-badge" id="navMsgBadge" style="display: none;"></span>
             </button>
             <button class="nav-item" data-section="profile">
                 <i class="fa-solid fa-user"></i>
@@ -156,7 +157,7 @@
             </div>
         </div>
 
-        <!-- MODAL AUTH CON PESTAÑAS Y AVATAR INTERACTIVO -->
+        <!-- MODAL AUTH -->
         <div class="modal-overlay" id="authModal">
             <div class="modal auth-card">
                 <button class="modal-close" id="closeAuthModal"><i class="fa-solid fa-xmark"></i></button>
@@ -167,14 +168,11 @@
                     <button class="auth-tab" id="tabLogin">Iniciar Sesión</button>
                 </div>
 
-                <!-- FORMULARIO REGISTRO -->
                 <div id="formRegisterContainer">
                     <div class="edit-avatar-picker-container">
                         <label for="authPhotoFile" class="edit-avatar-picker">
                             <div class="avatar-box" id="authAvatarPreview">👤</div>
-                            <div class="edit-avatar-overlay">
-                                <i class="fa-solid fa-camera"></i>
-                            </div>
+                            <div class="edit-avatar-overlay"><i class="fa-solid fa-camera"></i></div>
                         </label>
                         <span class="avatar-hint">Toca la foto para elegir avatar</span>
                         <input type="file" id="authPhotoFile" accept="image/*" style="display: none;">
@@ -202,7 +200,6 @@
                     </button>
                 </div>
 
-                <!-- FORMULARIO INICIAR SESIÓN -->
                 <div id="formLoginContainer" style="display: none;">
                     <div class="form-group" style="margin-top: 15px;">
                         <label>Correo Electrónico</label>
@@ -221,7 +218,7 @@
             </div>
         </div>
 
-        <!-- MODAL EDITAR PERFIL MEJORADO -->
+        <!-- MODAL EDITAR PERFIL -->
         <div class="modal-overlay" id="editProfileModal">
             <div class="modal">
                 <button class="modal-close" id="closeEditProfile"><i class="fa-solid fa-xmark"></i></button>
@@ -231,9 +228,7 @@
                 <div class="edit-avatar-picker-container">
                     <label for="editPhotoFile" class="edit-avatar-picker" id="editAvatarPicker">
                         <div class="avatar-box" id="editAvatarPreview">👤</div>
-                        <div class="edit-avatar-overlay">
-                            <i class="fa-solid fa-camera"></i>
-                        </div>
+                        <div class="edit-avatar-overlay"><i class="fa-solid fa-camera"></i></div>
                     </label>
                     <span class="avatar-hint">Toca la foto para cambiarla</span>
                     <input type="file" id="editPhotoFile" accept="image/*" style="display: none;">
