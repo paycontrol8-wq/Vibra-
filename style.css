@@ -289,6 +289,19 @@ button:active { transform: scale(0.96); }
     box-shadow: 0 2px 8px #ff4b72;
 }
 
+/* Badge de notificación en barra inferior */
+.nav-badge {
+    position: absolute;
+    top: 10px;
+    right: calc(50% - 16px);
+    width: 9px;
+    height: 9px;
+    background: var(--pink);
+    border-radius: 50%;
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 6px var(--pink);
+}
+
 .nav-add-btn { position: relative; display: flex; align-items: center; justify-content: center; }
 .add-icon-wrapper {
     width: 50px; height: 50px; border-radius: 50%; background: var(--gradient-pride);
