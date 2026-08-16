@@ -17,10 +17,16 @@ function initApp() {
     let globalMessagesUnsubscribe = null;
 
     let userCoords = { lat: 7.1193, lng: -73.1227 };
+    
+    // OBTENER GEOLOCALIZACIÓN REAL DEL DISPOSITIVO
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-            (pos) => { userCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude }; updatePresence(); },
-            () => { updatePresence(); }
+            (pos) => { 
+                userCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude }; 
+                if (currentUser) updatePresence(); 
+            },
+            (err) => { console.warn("GPS no disponible, usando ubicación por defecto:", err); },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
     }
 
@@ -29,7 +35,7 @@ function initApp() {
 
     if (currentUser) {
         updatePresence();
-        setInterval(updatePresence, 30000);
+        setInterval(updatePresence, 20000);
         initGlobalMessageListener();
     }
 
@@ -38,7 +44,6 @@ function initApp() {
     initPeopleList();
     initInboxList();
 
-    // Sistema de Alerta con Sonido Nativo
     function playNotificationSound() {
         try {
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -46,8 +51,8 @@ function initApp() {
             const gainNode = audioCtx.createGain();
             
             oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
-            oscillator.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1); // A5
+            oscillator.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1);
             
             gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
             gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
@@ -57,12 +62,9 @@ function initApp() {
             
             oscillator.start();
             oscillator.stop(audioCtx.currentTime + 0.3);
-        } catch (e) {
-            // Prevenir bloqueos de autoplay del navegador
-        }
+        } catch (e) {}
     }
 
-    // Escucha en tiempo real de mensajes nuevos para notificar con sonido y badge
     function initGlobalMessageListener() {
         if (!currentUser) return;
         if (globalMessagesUnsubscribe) globalMessagesUnsubscribe();
@@ -77,14 +79,11 @@ function initApp() {
                     onSnapshot(qMsgs, (msgSnap) => {
                         if (!msgSnap.empty) {
                             const latestMsg = msgSnap.docs[0].data();
-                            
                             if (latestMsg.senderId !== currentUser.id) {
                                 const msgTime = latestMsg.createdAt?.toMillis ? latestMsg.createdAt.toMillis() : Date.now();
-                                
                                 if (Date.now() - msgTime < 6000) {
                                     playNotificationSound();
                                     showToast("💬 ¡Nuevo mensaje recibido!");
-                                    
                                     const badge = document.getElementById("navMsgBadge");
                                     if (badge) badge.style.display = "block";
                                 }
@@ -118,7 +117,6 @@ function initApp() {
         });
     }
 
-    // PESTAÑAS EN AUTH MODAL
     const tabRegister = document.getElementById("tabRegister");
     const tabLogin = document.getElementById("tabLogin");
     const formRegister = document.getElementById("formRegisterContainer");
@@ -141,12 +139,9 @@ function initApp() {
     const authPhotoInput = document.getElementById("authPhotoFile");
     authPhotoInput.addEventListener("change", async () => {
         const previewImg = await processImageFile(authPhotoInput);
-        if (previewImg) {
-            renderAvatar(document.getElementById("authAvatarPreview"), previewImg);
-        }
+        if (previewImg) renderAvatar(document.getElementById("authAvatarPreview"), previewImg);
     });
 
-    // REGISTRO
     document.getElementById("btnStartSession").addEventListener("click", async () => {
         const name = document.getElementById("authName").value.trim();
         const email = document.getElementById("authEmail").value.trim();
@@ -161,7 +156,19 @@ function initApp() {
         const photoBase64 = await processImageFile(authPhotoInput);
         const id = "usr_" + btoa(email.toLowerCase()).replace(/=/g, "");
         
-        currentUser = { id, name, email, password, pronouns, photo: photoBase64 || null, lat: userCoords.lat, lng: userCoords.lng };
+        currentUser = { 
+            id, 
+            name, 
+            email, 
+            password, 
+            pronouns, 
+            photo: photoBase64 || null, 
+            lat: userCoords.lat, 
+            lng: userCoords.lng,
+            lastSeen: Date.now()
+        };
+
+        await setDoc(doc(db, "users", id), currentUser);
 
         localStorage.setItem("vibraUserSession", JSON.stringify(currentUser));
         authModal.classList.remove("active");
@@ -169,10 +176,10 @@ function initApp() {
         updateUI();
         initInboxList();
         initGlobalMessageListener();
+        initPeopleList();
         showToast("¡Cuenta creada y sesión iniciada! ✨");
     });
 
-    // INICIAR SESIÓN
     document.getElementById("btnSubmitLogin").addEventListener("click", async () => {
         const email = document.getElementById("loginEmail").value.trim();
         const password = document.getElementById("loginPassword").value.trim();
@@ -192,13 +199,17 @@ function initApp() {
                 showToast("Contraseña incorrecta");
                 return;
             }
-            currentUser = { ...userData, id };
+            currentUser = { ...userData, id, lat: userCoords.lat, lng: userCoords.lng, lastSeen: Date.now() };
+            
+            await setDoc(userDocRef, { lat: userCoords.lat, lng: userCoords.lng, lastSeen: Date.now() }, { merge: true });
+
             localStorage.setItem("vibraUserSession", JSON.stringify(currentUser));
             authModal.classList.remove("active");
             updatePresence();
             updateUI();
             initInboxList();
             initGlobalMessageListener();
+            initPeopleList();
             showToast("¡Bienvenido/a de nuevo! ✨");
         } else {
             showToast("Usuario no encontrado. Regístrate primero.");
@@ -207,13 +218,17 @@ function initApp() {
 
     function updatePresence() {
         if (!currentUser) return;
-        currentUser.lastSeen = Date.now();
         currentUser.lat = userCoords.lat;
         currentUser.lng = userCoords.lng;
-        setDoc(doc(db, "users", currentUser.id), currentUser, { merge: true });
+        currentUser.lastSeen = Date.now();
+        setDoc(doc(db, "users", currentUser.id), {
+            id: currentUser.id,
+            lat: userCoords.lat,
+            lng: userCoords.lng,
+            lastSeen: Date.now()
+        }, { merge: true });
     }
 
-    // NAVEGACIÓN
     const sections = {
         home: document.getElementById("homeSection"),
         people: document.getElementById("peopleSection"),
@@ -233,7 +248,9 @@ function initApp() {
         if (sectionName === "messages") {
             document.getElementById("navMsgBadge").style.display = "none";
         }
-
+        if (sectionName === "people") {
+            initPeopleList();
+        }
         window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
@@ -241,6 +258,7 @@ function initApp() {
     document.getElementById("btnProfileHeader").addEventListener("click", () => navigateTo("profile"));
 
     function renderAvatar(element, photoUrl) {
+        if (!element) return;
         if (photoUrl) {
             element.innerHTML = `<img src="${photoUrl}" alt="Avatar">`;
         } else {
@@ -279,7 +297,6 @@ function initApp() {
 
     document.getElementById("btnProfileLoginToggle").addEventListener("click", () => authModal.classList.add("active"));
 
-    // CREAR PUBLICACIÓN
     document.getElementById("btnOpenCreatePost").addEventListener("click", () => {
         requireAuth(() => {
             createPostModal.classList.add("active");
@@ -291,25 +308,31 @@ function initApp() {
         const text = document.getElementById("postInput").value.trim();
         if (!text) return;
 
+        const expirationMinutesSelect = document.getElementById("postExpiration");
+        const minutes = expirationMinutesSelect ? parseInt(expirationMinutesSelect.value) || 40 : 40;
+        const expiresAtTime = Date.now() + (minutes * 60 * 1000);
+
         addDoc(collection(db, "posts"), {
             userId: currentUser.id,
             userName: currentUser.name,
             userPhoto: currentUser.photo || null,
             userPronouns: currentUser.pronouns,
             text: text,
-            createdAt: serverTimestamp()
+            createdAt: serverTimestamp(),
+            expiresAt: expiresAtTime
         });
 
         document.getElementById("postInput").value = "";
         createPostModal.classList.remove("active");
-        showToast("¡Publicación realizada! 🚀");
+        showToast(`¡Publicación realizada! Se borrará en ${minutes} minutos. 🚀`);
     });
 
-    // FEED (Con validación de existencia del usuario)
+    // FEED: FILTRA HUÉRFANOS Y ELIMINA AUTOMÁTICAMENTE LAS PUBLICACIONES EXPIRADAS
     function initFeed() {
         const q = query(collection(db, "posts"), orderBy("createdAt", "desc"), limit(25));
         onSnapshot(q, async (snapshot) => {
             const feedList = document.getElementById("feedList");
+            if (!feedList) return;
             feedList.innerHTML = "";
 
             if (snapshot.empty) {
@@ -317,29 +340,38 @@ function initApp() {
                 return;
             }
 
+            const now = Date.now();
+
             for (const docSnap of snapshot.docs) {
                 const post = docSnap.data();
-                
-                // Verificar si el usuario todavía existe en la base de datos
-                const userSnap = await getDoc(doc(db, "users", post.userId));
-                if (!userSnap.exists()) {
-                    // Si el usuario eliminó su cuenta, borramos la publicación huérfana automáticamente
-                    await deleteDoc(docSnap.ref);
-                    continue; // No renderizamos esta publicación
+                const postId = docSnap.id;
+
+                if (post.expiresAt && now > post.expiresAt) {
+                    deleteDoc(doc(db, "posts", postId)).catch(err => {
+                        console.error("Error al eliminar post expirado:", err);
+                    });
+                    continue;
                 }
 
-                const userData = userSnap.data();
-                const photoUrl = userData.photo || post.userPhoto;
+                if (!post.userId) continue;
+
+                const userCheckRef = doc(db, "users", post.userId);
+                const userCheckSnap = await getDoc(userCheckRef);
+                
+                if (!userCheckSnap.exists()) {
+                    continue; 
+                }
+
+                const userData = userCheckSnap.data();
                 const isMyPost = currentUser && post.userId === currentUser.id;
 
                 const card = document.createElement("div");
                 card.className = "feed-card";
-
                 card.innerHTML = `
                     <div class="feed-header" style="position: relative;">
                         <div class="feed-user-left">
                             <div class="mini-avatar avatar-box">
-                                ${photoUrl ? `<img src="${photoUrl}" alt="${escapeHTML(userData.name)}">` : '👤'}
+                                ${userData.photo ? `<img src="${userData.photo}" alt="${escapeHTML(userData.name)}">` : '👤'}
                             </div>
                             <div class="feed-user-info">
                                 <strong>${escapeHTML(userData.name)} <small>(${escapeHTML(userData.pronouns || "")})</small></strong>
@@ -358,7 +390,7 @@ function initApp() {
                     const btnMsg = card.querySelector(".btn-feed-msg");
                     if (btnMsg) {
                         btnMsg.addEventListener("click", () => {
-                            requireAuth(() => openChatModal(post.userId, userData.name, photoUrl, true));
+                            requireAuth(() => openChatModal(post.userId, userData.name, userData.photo, true));
                         });
                     }
                 }
@@ -368,14 +400,15 @@ function initApp() {
         });
     }
 
-    // LISTA DE PERSONAS ORDENADAS POR CERCANÍA
+    // PANTALLA DE PERSONAS: MUESTRA Y MANTIENE LOS PERFILES VÁLIDOS SIN BORRARLOS INJUSTAMENTE
     function initPeopleList() {
-        const q = query(collection(db, "users"), limit(50));
-        onSnapshot(q, (snapshot) => {
+        const usersRef = collection(db, "users");
+        
+        onSnapshot(usersRef, (snapshot) => {
             const list = document.getElementById("peopleList");
+            if (!list) return;
             list.innerHTML = "";
 
-            const now = Date.now();
             const myLat = currentUser ? currentUser.lat : userCoords.lat;
             const myLng = currentUser ? currentUser.lng : userCoords.lng;
 
@@ -385,20 +418,20 @@ function initApp() {
                 const p = docSnap.data();
                 const pId = docSnap.id;
                 
-                if (!p || !p.name || p.name.trim() === "") return;
-
-                const nameLower = p.name.toLowerCase().trim();
-                if (
-                    nameLower.startsWith("jugador") || 
-                    nameLower.startsWith("persona") || 
-                    nameLower.includes("invitado") ||
-                    !p.email
-                ) {
-                    return;
+                if (!p || !p.name || typeof p.name !== "string" || 
+                    p.name.trim() === "" || 
+                    p.name.startsWith("Jugador V") || 
+                    p.name.startsWith("Persona V") || 
+                    p.name === "Vibra") {
+                    
+                    deleteDoc(doc(db, "users", pId)).catch(err => {
+                        console.error("No se pudo eliminar el registro:", err);
+                    });
+                    return; 
                 }
 
                 const distanceKmNum = calculateRawDistance(myLat, myLng, p.lat || myLat, p.lng || myLng);
-                const isOnline = p.lastSeen && (now - p.lastSeen < 120000);
+                const isOnline = p.lastSeen && (Date.now() - p.lastSeen < 600000);
 
                 usersList.push({
                     id: pId,
@@ -422,6 +455,17 @@ function initApp() {
 
                 const card = document.createElement("div");
                 card.className = "person-card";
+                
+                let distText = "Tú";
+                if (!isMe) {
+                    if (item.distance < 1) {
+                        const meters = Math.round(item.distance * 1000);
+                        distText = meters < 50 ? "A tu lado (< 50m)" : `${meters} m`;
+                    } else {
+                        distText = `${item.distance.toFixed(1)} km`;
+                    }
+                }
+
                 card.innerHTML = `
                     <div class="person-avatar-wrapper">
                         <div class="person-avatar avatar-box">
@@ -430,7 +474,7 @@ function initApp() {
                         <span class="status-indicator ${item.isOnline ? 'online' : 'offline'}"></span>
                     </div>
                     <div class="person-name">${escapeHTML(p.name)}</div>
-                    <div class="person-dist">${isMe ? "Tú" : (item.distance < 1 ? "< 1 km" : item.distance.toFixed(1) + " km")}</div>
+                    <div class="person-dist">${distText}</div>
                 `;
 
                 card.addEventListener("click", () => {
@@ -444,9 +488,10 @@ function initApp() {
         });
     }
 
-    // BANDEJA DE ENTRADA ORDENADA, VISTA PREVIA Y DISTANCIA EN TIEMPO REAL
     function initInboxList() {
         const inboxList = document.getElementById("inboxList");
+        if (!inboxList) return;
+
         if (!currentUser) {
             inboxList.innerHTML = `<div class="empty-state"><p>Debes iniciar sesión para ver tus mensajes privados.</p></div>`;
             return;
@@ -485,11 +530,8 @@ function initApp() {
 
                         const myLat = currentUser.lat || userCoords.lat;
                         const myLng = currentUser.lng || userCoords.lng;
-                        const otherLat = otherUser.lat || myLat;
-                        const otherLng = otherUser.lng || myLng;
-                        
-                        const distanceKmNum = calculateRawDistance(myLat, myLng, otherLat, otherLng);
-                        const distanceText = distanceKmNum < 1 ? `${Math.round(distanceKmNum * 1000)} metros` : `${distanceKmNum.toFixed(1)} km`;
+                        const distanceKmNum = calculateRawDistance(myLat, myLng, otherUser.lat || myLat, otherUser.lng || myLng);
+                        const distanceText = distanceKmNum < 1 ? `${Math.round(distanceKmNum * 1000)} m` : `${distanceKmNum.toFixed(1)} km`;
 
                         const qMsgs = query(collection(db, "chats", chatId, "messages"), orderBy("createdAt", "desc"), limit(1));
                         onSnapshot(qMsgs, (msgSnap) => {
@@ -536,7 +578,6 @@ function initApp() {
         });
     }
 
-    // CHAT MODAL
     const chatModal = document.getElementById("chatModal");
     const chatMessages = document.getElementById("chatMessages");
     const chatInput = document.getElementById("chatInput");
@@ -548,6 +589,7 @@ function initApp() {
         document.getElementById("chatTargetStatus").textContent = isOnline ? "En línea" : "Desconectado";
         
         chatModal.classList.add("active");
+        chatModal.style.bottom = "70px"; 
         loadChatMessages();
     }
 
@@ -596,7 +638,6 @@ function initApp() {
         chatInput.value = "";
     }
 
-    // EDITAR PERFIL
     const editModal = document.getElementById("editProfileModal");
     const editPhotoFileInput = document.getElementById("editPhotoFile");
 
@@ -611,9 +652,7 @@ function initApp() {
 
     editPhotoFileInput.addEventListener("change", async () => {
         const previewImg = await processImageFile(editPhotoFileInput);
-        if (previewImg) {
-            renderAvatar(document.getElementById("editAvatarPreview"), previewImg);
-        }
+        if (previewImg) renderAvatar(document.getElementById("editAvatarPreview"), previewImg);
     });
 
     document.getElementById("closeEditProfile").addEventListener("click", () => editModal.classList.remove("active"));
@@ -624,6 +663,8 @@ function initApp() {
         currentUser.name = document.getElementById("inputEditName").value.trim() || currentUser.name;
         currentUser.pronouns = document.getElementById("inputEditPronouns").value.trim() || currentUser.pronouns;
         if (newPhotoBase64) currentUser.photo = newPhotoBase64;
+
+        await setDoc(doc(db, "users", currentUser.id), currentUser, { merge: true });
 
         localStorage.setItem("vibraUserSession", JSON.stringify(currentUser));
         updatePresence();
@@ -637,6 +678,7 @@ function initApp() {
         currentUser = null;
         updateUI();
         initInboxList();
+        initPeopleList();
         showToast("Has cerrado sesión");
     });
 
@@ -648,22 +690,36 @@ function initApp() {
         if (currentUser) {
             const userId = currentUser.id;
 
-            // 1. Eliminar el documento de usuario en la base de datos
-            await deleteDoc(doc(db, "users", userId));
+            try {
+                await deleteDoc(doc(db, "users", userId));
 
-            // 2. Buscar y eliminar todas las publicaciones hechas por este usuario
-            const postsQuery = query(collection(db, "posts"), where("userId", "==", userId));
-            const postsSnapshot = await getDocs(postsQuery);
-            const deletePostPromises = postsSnapshot.docs.map(postDoc => deleteDoc(postDoc.ref));
-            await Promise.all(deletePostPromises);
+                const postsQuery = query(collection(db, "posts"), where("userId", "==", userId));
+                const postsSnapshot = await getDocs(postsQuery);
+                const deletePostPromises = postsSnapshot.docs.map(postDoc => deleteDoc(postDoc.ref));
+                await Promise.all(deletePostPromises);
 
-            // 3. Limpiar sesión local y actualizar interfaz
+                const chatsQuery = query(collection(db, "chats"));
+                const chatsSnapshot = await getDocs(chatsQuery);
+                const deleteChatsPromises = [];
+                chatsSnapshot.forEach(chatDoc => {
+                    if (chatDoc.id.includes(userId)) {
+                        deleteChatsPromises.push(deleteDoc(chatDoc.ref));
+                    }
+                });
+                await Promise.all(deleteChatsPromises);
+
+            } catch (error) {
+                console.error("Error al eliminar datos de Firebase:", error);
+            }
+
             localStorage.removeItem("vibraUserSession");
             currentUser = null;
             deleteModal.classList.remove("active");
             updateUI();
             initInboxList();
-            showToast("Tu cuenta, perfil y publicaciones han sido eliminados.");
+            initFeed();
+            initPeopleList();
+            showToast("Tu cuenta y publicaciones fueron eliminadas de Firebase.");
         }
     });
 
@@ -687,6 +743,7 @@ function initApp() {
 
     function showToast(msg) {
         const toast = document.getElementById("toast");
+        if (!toast) return;
         document.getElementById("toastMessage").textContent = msg;
         toast.classList.add("show");
         setTimeout(() => toast.classList.remove("show"), 2500);
