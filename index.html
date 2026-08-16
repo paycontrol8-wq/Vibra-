@@ -3,288 +3,246 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#08080d">
-    <title>Vibra 🌈 | Red Social</title>
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-
-    <!-- Firebase SDK Modular -->
-    <script type="module">
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
-      import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, deleteDoc, onSnapshot, query, orderBy, limit, serverTimestamp, where } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
-
-      const firebaseConfig = {
-        apiKey: "AIzaSyBagjN_B8NL9kw9OX9EJvhGJZs19IbD79Q",
-        authDomain: "vibra-e4418.firebaseapp.com",
-        projectId: "vibra-e4418",
-        storageBucket: "vibra-e4418.firebasestorage.app",
-        messagingSenderId: "6468221895",
-        appId: "1:6468221895:web:b9ef625e1bbd934f1f77e2"
-      };
-
-      const app = initializeApp(firebaseConfig);
-      window.db = getFirestore(app);
-      window.FB = { collection, doc, setDoc, getDoc, getDocs, addDoc, deleteDoc, onSnapshot, query, orderBy, limit, serverTimestamp, where };
-    </script>
-
+    <title>Vibra - Comunidad Local</title>
+    <!-- Estilos CSS -->
     <link rel="stylesheet" href="style.css">
+    <!-- FontAwesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
-    <div id="app">
-        <!-- HEADER -->
-        <header class="app-header">
-            <div class="brand">
-                <div class="brand-icon"><i class="fa-solid fa-heart"></i></div>
-                <div class="brand-info">
-                    <h1>Vibra 🌈</h1>
-                    <span>Tu comunidad</span>
-                </div>
-            </div>
-            <div class="header-actions">
-                <button class="profile-mini" id="btnProfileHeader"><div class="avatar-box" id="headerAvatar">👤</div></button>
-            </div>
-        </header>
-
-        <!-- MAIN -->
-        <main class="main-content">
-
-            <!-- INICIO / FEED -->
-            <section class="page-section active" id="homeSection">
-                <div class="section-title">
-                    <h3><i class="fa-solid fa-stream"></i> Publicaciones recientes</h3>
-                </div>
-
-                <div id="feedList" class="feed-list">
-                    <div class="empty-state">Cargando publicaciones...</div>
-                </div>
-            </section>
-
-            <!-- PERSONAS / GALERÍA RESPONSIVA -->
-            <section class="page-section" id="peopleSection">
-                <div class="page-title">
-                    <span class="small-label">🟢 EN LÍNEA & CERCA</span>
-                    <h2>Personas</h2>
-                    <p>Toca a una persona para enviarle un mensaje.</p>
-                </div>
-                <div class="people-grid" id="peopleList"></div>
-            </section>
-
-            <!-- MENSAJES / BANDEJA DE ENTRADA -->
-            <section class="page-section" id="messagesSection">
-                <div class="page-title">
-                    <span class="small-label">💬 CONVERSACIONES</span>
-                    <h2>Tus Mensajes</h2>
-                    <p>Toca cualquier conversación para responder.</p>
-                </div>
-                <div class="inbox-list" id="inboxList">
-                    <div class="empty-state">No tienes mensajes aún.</div>
-                </div>
-            </section>
-
-            <!-- PERFIL -->
-            <section class="page-section" id="profileSection">
-                <div class="profile-card-modern">
-                    <div class="profile-avatar-container">
-                        <div class="profile-avatar avatar-box" id="profileAvatar">👤</div>
-                    </div>
-                    <h2 class="profile-user-name" id="profileName">Invitado</h2>
-                    <span id="profilePronouns" class="pronouns-badge">(Sin registro)</span>
-                    <p id="profileEmail" class="profile-email-text">Inicia sesión para personalizar tu perfil</p>
-                    
-                    <div class="profile-actions-column">
-                        <button class="primary-button" id="btnProfileLoginToggle" style="display:none;">
-                            <i class="fa-solid fa-arrow-right-to-bracket"></i> Iniciar Sesión / Registrarse
-                        </button>
-                        
-                        <div id="userLoggedInActions" style="width: 100%; display: flex; flex-direction: column; gap: 10px;">
-                            <button class="secondary-button" id="btnOpenEditProfile">
-                                <i class="fa-solid fa-pen"></i> Editar Perfil
-                            </button>
-                            <button class="secondary-button warning" id="btnLogout">
-                                <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
-                            </button>
-                            <button class="secondary-button danger" id="btnDeleteAccount">
-                                <i class="fa-solid fa-trash-can"></i> Eliminar Cuenta
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-        </main>
-
-        <!-- NAV INFERIOR -->
-        <nav class="bottom-nav">
-            <button class="nav-item active" data-section="home">
-                <i class="fa-solid fa-house"></i>
-                <span>Inicio</span>
-            </button>
-            <button class="nav-item" data-section="people">
-                <i class="fa-solid fa-users"></i>
-                <span>Personas</span>
-            </button>
-            
-            <button class="nav-item nav-add-btn" id="btnOpenCreatePost">
-                <div class="add-icon-wrapper"><i class="fa-solid fa-plus"></i></div>
-            </button>
-            
-            <button class="nav-item" data-section="messages" id="navMessagesBtn">
-                <i class="fa-solid fa-comments"></i>
-                <span>Mensajes</span>
-                <span class="nav-badge" id="navMsgBadge" style="display: none;"></span>
-            </button>
-            <button class="nav-item" data-section="profile">
-                <i class="fa-solid fa-user"></i>
-                <span>Perfil</span>
-            </button>
-        </nav>
-
-        <!-- MODAL PUBLICAR -->
-        <div class="modal-overlay" id="createPostModal">
-            <div class="modal">
-                <button class="modal-close" id="closeCreatePostModal"><i class="fa-solid fa-xmark"></i></button>
-                <span class="modal-icon">✨</span>
-                <h2>Crear Publicación</h2>
-                <div class="post-input-wrapper" style="margin-top: 15px;">
-                    <div id="modalPostAvatar" class="mini-avatar avatar-box">👤</div>
-                    <textarea id="postInput" placeholder="¿Qué estás pensando hoy?..." rows="4"></textarea>
-                </div>
-                <button class="primary-button" id="btnPublishPost" style="margin-top: 15px;"><i class="fa-solid fa-paper-plane"></i> Publicar en Feed</button>
-            </div>
+    <!-- CABECERA PRINCIPAL -->
+    <header class="app-header">
+        <div class="header-logo">
+            <span class="logo-icon">⚡</span>
+            <h1>Vibra</h1>
         </div>
+        <div class="header-actions">
+            <button id="btnProfileHeader" class="header-avatar-btn" title="Mi Perfil">
+                <div id="headerAvatar" class="avatar-box">👤</div>
+            </button>
+        </div>
+    </header>
 
-        <!-- MODAL AUTH -->
-        <div class="modal-overlay" id="authModal">
-            <div class="modal auth-card">
-                <button class="modal-close" id="closeAuthModal"><i class="fa-solid fa-xmark"></i></button>
-                <span class="modal-icon">🌈</span>
+    <!-- CONTENEDOR DE SECCIONES -->
+    <main class="app-main">
+
+        <!-- SECCIÓN 1: INICIO (FEED) -->
+        <section id="homeSection" class="app-section active">
+            <div class="section-title">
+                <h2>Inicio</h2>
+                <p>Publicaciones recientes en tu zona</p>
+            </div>
+            <div id="feedList" class="feed-container">
+                <!-- Las publicaciones se cargan dinámicamente -->
+            </div>
+        </section>
+
+        <!-- SECCIÓN 2: PERSONAS (RADAR) -->
+        <section id="peopleSection" class="app-section">
+            <div class="section-title">
+                <h2>Personas Cerca</h2>
+                <p>Descubre quiénes están conectados a tu alrededor</p>
+            </div>
+            <div id="peopleList" class="people-grid">
+                <!-- Los usuarios cercanos se cargan dinámicamente -->
+            </div>
+        </section>
+
+        <!-- SECCIÓN 3: MENSAJES (BANDEJA DE ENTRADA) -->
+        <section id="messagesSection" class="app-section">
+            <div class="section-title">
+                <h2>Mensajes</h2>
+                <p>Tus conversaciones privadas</p>
+            </div>
+            <div id="inboxList" class="inbox-container">
+                <!-- Los chats se cargan dinámicamente -->
+            </div>
+        </section>
+
+        <!-- SECCIÓN 4: PERFIL -->
+        <section id="profileSection" class="app-section">
+            <div class="profile-card">
+                <div class="profile-avatar-container">
+                    <div id="profileAvatar" class="avatar-box large">👤</div>
+                </div>
+                <h3 id="profileName">Invitado/a</h3>
+                <p id="profilePronouns" class="profile-pronouns">(Sin registro)</p>
+                <p id="profileEmail" class="profile-email">Explora o inicia sesión para interactuar</p>
+
+                <div id="userLoggedInActions" class="profile-actions" style="display: none;">
+                    <button id="btnOpenEditProfile" class="btn-primary">Editar Perfil</button>
+                    <button id="btnDeleteAccount" class="btn-danger">Eliminar Cuenta</button>
+                    <button id="btnLogout" class="btn-secondary">Cerrar Sesión</button>
+                </div>
+
+                <div id="userLoggedInActions" style="margin-top: 15px;">
+                    <button id="btnProfileLoginToggle" class="btn-primary">Iniciar Sesión / Registrarse</button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- BARRA DE NAVEGACIÓN INFERIOR -->
+    <nav class="app-nav">
+        <button class="nav-item active" data-section="home">
+            <i class="fa-solid fa-house"></i>
+            <span>Inicio</span>
+        </button>
+        <button class="nav-item" data-section="people">
+            <i class="fa-solid fa-user-group"></i>
+            <span>Personas</span>
+        </button>
+        <button class="nav-item nav-add-btn" id="btnOpenCreatePost">
+            <div class="add-btn-circle">
+                <i class="fa-solid fa-plus"></i>
+            </div>
+        </button>
+        <button class="nav-item" data-section="messages" style="position: relative;">
+            <i class="fa-solid fa-comment-dots"></i>
+            <span>Mensajes</span>
+            <span id="navMsgBadge" class="nav-badge" style="display: none;"></span>
+        </button>
+        <button class="nav-item" data-section="profile">
+            <i class="fa-solid fa-user"></i>
+            <span>Perfil</span>
+        </button>
+    </nav>
+
+    <!-- MODAL: CREAR PUBLICACIÓN -->
+    <div id="createPostModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Nueva Publicación</h3>
+                <button id="closeCreatePostModal" class="close-modal-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-user-info">
+                    <div id="modalPostAvatar" class="avatar-box mini">👤</div>
+                    <span>Comparte lo que piensas</span>
+                </div>
+                <textarea id="postInput" placeholder="¿Qué está pasando?" rows="4"></textarea>
                 
-                <div class="auth-tabs">
-                    <button class="auth-tab active" id="tabRegister">Registrarse</button>
-                    <button class="auth-tab" id="tabLogin">Iniciar Sesión</button>
+                <!-- SELECTOR DE TIEMPO DE CADUCIDAD -->
+                <div class="form-group" style="margin-top: 15px;">
+                    <label for="postExpiration" style="font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 5px;">Tiempo de visibilidad:</label>
+                    <select id="postExpiration" class="auth-input" style="width: 100%; padding: 10px; border-radius: 8px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color);">
+                        <option value="15">15 minutos</option>
+                        <option value="30">30 minutos</option>
+                        <option value="40" selected>40 minutos (Por defecto)</option>
+                    </select>
                 </div>
 
-                <div id="formRegisterContainer">
-                    <div class="edit-avatar-picker-container">
-                        <label for="authPhotoFile" class="edit-avatar-picker">
-                            <div class="avatar-box" id="authAvatarPreview">👤</div>
-                            <div class="edit-avatar-overlay"><i class="fa-solid fa-camera"></i></div>
-                        </label>
-                        <span class="avatar-hint">Toca la foto para elegir avatar</span>
-                        <input type="file" id="authPhotoFile" accept="image/*" style="display: none;">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Nombre o usuario</label>
-                        <input type="text" id="authName" class="card-input" placeholder="Ej: Alex">
-                    </div>
-                    <div class="form-group">
-                        <label>Correo Electrónico</label>
-                        <input type="email" id="authEmail" class="card-input" placeholder="correo@ejemplo.com">
-                    </div>
-                    <div class="form-group">
-                        <label>Contraseña</label>
-                        <input type="password" id="authPassword" class="card-input" placeholder="******">
-                    </div>
-                    <div class="form-group">
-                        <label>Pronombres</label>
-                        <input type="text" id="authPronouns" class="card-input" placeholder="Ej: Él/Ella/Elle" value="Él/Ella/Elle">
-                    </div>
-
-                    <button class="primary-button" id="btnStartSession" style="margin-top: 10px;">
-                        <i class="fa-solid fa-user-plus"></i> Crear Cuenta y Entrar
-                    </button>
-                </div>
-
-                <div id="formLoginContainer" style="display: none;">
-                    <div class="form-group" style="margin-top: 15px;">
-                        <label>Correo Electrónico</label>
-                        <input type="email" id="loginEmail" class="card-input" placeholder="correo@ejemplo.com">
-                    </div>
-                    <div class="form-group">
-                        <label>Contraseña</label>
-                        <input type="password" id="loginPassword" class="card-input" placeholder="******">
-                    </div>
-
-                    <button class="primary-button" id="btnSubmitLogin" style="margin-top: 15px;">
-                        <i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión
-                    </button>
-                </div>
-
+                <button id="btnPublishPost" class="btn-primary" style="width: 100%; margin-top: 15px;">Publicar</button>
             </div>
-        </div>
-
-        <!-- MODAL EDITAR PERFIL -->
-        <div class="modal-overlay" id="editProfileModal">
-            <div class="modal">
-                <button class="modal-close" id="closeEditProfile"><i class="fa-solid fa-xmark"></i></button>
-                <span class="modal-icon">✨</span>
-                <h2>Editar tu Perfil</h2>
-                
-                <div class="edit-avatar-picker-container">
-                    <label for="editPhotoFile" class="edit-avatar-picker" id="editAvatarPicker">
-                        <div class="avatar-box" id="editAvatarPreview">👤</div>
-                        <div class="edit-avatar-overlay"><i class="fa-solid fa-camera"></i></div>
-                    </label>
-                    <span class="avatar-hint">Toca la foto para cambiarla</span>
-                    <input type="file" id="editPhotoFile" accept="image/*" style="display: none;">
-                </div>
-
-                <div class="form-group">
-                    <label>Nombre o Apodo</label>
-                    <input type="text" id="inputEditName" class="card-input">
-                </div>
-                <div class="form-group">
-                    <label>Pronombres</label>
-                    <input type="text" id="inputEditPronouns" class="card-input">
-                </div>
-                <button class="primary-button" id="btnSaveProfile" style="margin-top: 10px;">
-                    <i class="fa-solid fa-floppy-disk"></i> Guardar Cambios
-                </button>
-            </div>
-        </div>
-
-        <!-- MODAL CONFIRMAR ELIMINAR CUENTA -->
-        <div class="modal-overlay" id="deleteConfirmModal">
-            <div class="modal">
-                <button class="modal-close" id="closeDeleteModal"><i class="fa-solid fa-xmark"></i></button>
-                <span class="modal-icon" style="background:rgba(255,75,114,0.15); color:#ff4b72;">⚠️</span>
-                <h2>¿Eliminar tu Cuenta?</h2>
-                <p style="font-size:12px; color:var(--text-soft); margin: 10px 0 20px;">Esta acción borrará tu perfil de la comunidad. No podrás deshacerlo.</p>
-                <button class="primary-button danger-btn" id="btnConfirmDeleteAccount"><i class="fa-solid fa-trash-can"></i> Sí, eliminar definitivamente</button>
-            </div>
-        </div>
-
-        <!-- MODAL CHAT DIRECTO -->
-        <div class="modal-overlay" id="chatModal">
-            <div class="modal chat-card-modal">
-                <button class="modal-close" id="closeChatModal"><i class="fa-solid fa-xmark"></i></button>
-                <div class="chat-header">
-                    <div id="chatTargetAvatar" class="ranking-avatar avatar-box">👤</div>
-                    <div>
-                        <strong id="chatTargetName">Usuario</strong>
-                        <small id="chatTargetStatus" style="display:block; color:var(--green); font-size:10px;">En línea</small>
-                    </div>
-                </div>
-                <div class="chat-messages" id="chatMessages"></div>
-                <div class="chat-input-area">
-                    <input type="text" id="chatInput" placeholder="Escribe un mensaje privado...">
-                    <button id="btnSendMessage"><i class="fa-solid fa-paper-plane"></i></button>
-                </div>
-            </div>
-        </div>
-
-        <!-- TOAST NOTIFICACIÓN -->
-        <div class="toast" id="toast">
-            <i class="fa-solid fa-circle-check"></i>
-            <span id="toastMessage">¡Listo!</span>
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <!-- MODAL: AUTENTICACIÓN (LOGIN / REGISTRO) -->
+    <div id="authModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Cuenta Vibra</h3>
+                <button id="closeAuthModal" class="close-modal-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="auth-tabs">
+                    <button id="tabRegister" class="auth-tab active">Registrarse</button>
+                    <button id="tabLogin" class="auth-tab">Iniciar Sesión</button>
+                </div>
+
+                <!-- CONTENEDOR REGISTRO -->
+                <div id="formRegisterContainer">
+                    <div class="auth-photo-upload">
+                        <label for="authPhotoFile" class="auth-photo-label">
+                            <div id="authAvatarPreview" class="avatar-box large">📷</div>
+                            <span>Subir Foto</span>
+                        </label>
+                        <input type="file" id="authPhotoFile" accept="image/*" style="display: none;">
+                    </div>
+                    <input type="text" id="authName" placeholder="Tu Nombre" class="auth-input">
+                    <input type="text" id="authPronouns" placeholder="Pronombres (Ej: Él/Ella/Elle)" class="auth-input">
+                    <input type="email" id="authEmail" placeholder="Correo Electrónico" class="auth-input">
+                    <input type="password" id="authPassword" placeholder="Contraseña" class="auth-input">
+                    <button id="btnStartSession" class="btn-primary" style="width: 100%; margin-top: 15px;">Crear Cuenta</button>
+                </div>
+
+                <!-- CONTENEDOR LOGIN -->
+                <div id="formLoginContainer" style="display: none;">
+                    <input type="email" id="loginEmail" placeholder="Correo Electrónico" class="auth-input">
+                    <input type="password" id="loginPassword" placeholder="Contraseña" class="auth-input">
+                    <button id="btnSubmitLogin" class="btn-primary" style="width: 100%; margin-top: 15px;">Entrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CHAT PRIVADO -->
+    <div id="chatModal" class="modal-overlay chat-modal-overlay">
+        <div class="chat-modal-content">
+            <div class="chat-header">
+                <div class="chat-header-user">
+                    <div id="chatTargetAvatar" class="avatar-box mini">👤</div>
+                    <div>
+                        <strong id="chatTargetName">Usuario</strong>
+                        <small id="chatTargetStatus">En línea</small>
+                    </div>
+                </div>
+                <button id="closeChatModal" class="close-modal-btn">&times;</button>
+            </div>
+            <div id="chatMessages" class="chat-messages-container"></div>
+            <div class="chat-input-area">
+                <input type="text" id="chatInput" placeholder="Escribe un mensaje...">
+                <button id="btnSendMessage" class="btn-send"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: EDITAR PERFIL -->
+    <div id="editProfileModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Editar Perfil</h3>
+                <button id="closeEditProfile" class="close-modal-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="auth-photo-upload">
+                    <label for="editPhotoFile" class="auth-photo-label">
+                        <div id="editAvatarPreview" class="avatar-box large">📷</div>
+                        <span>Cambiar Foto</span>
+                    </label>
+                    <input type="file" id="editPhotoFile" accept="image/*" style="display: none;">
+                </div>
+                <input type="text" id="inputEditName" placeholder="Tu Nombre" class="auth-input">
+                <input type="text" id="inputEditPronouns" placeholder="Pronombres" class="auth-input">
+                <button id="btnSaveProfile" class="btn-primary" style="width: 100%; margin-top: 15px;">Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CONFIRMAR ELIMINACIÓN DE CUENTA -->
+    <div id="deleteConfirmModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>¿Eliminar cuenta?</h3>
+                <button id="closeDeleteModal" class="close-modal-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px; text-align: center;">
+                    Esta acción es irreversible. Se borrarán tu perfil, tus publicaciones y tus chats de forma permanente.
+                </p>
+                <button id="btnConfirmDeleteAccount" class="btn-danger" style="width: 100%;">Sí, eliminar todo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST DE NOTIFICACIONES -->
+    <div id="toast" class="toast-notification">
+        <span id="toastMessage">Notificación</span>
+    </div>
+
+    <!-- Script principal de Firebase y Lógica -->
+    <script type="module" src="script.js"></script>
 </body>
 </html>
