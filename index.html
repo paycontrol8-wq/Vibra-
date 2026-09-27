@@ -1,248 +1,195 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vibra - Comunidad Local</title>
-    <!-- Estilos CSS -->
-    <link rel="stylesheet" href="style.css">
-    <!-- FontAwesome para iconos -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<head><style>
+@font-face {
+  font-family: "Optimistic";
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url("/fonts/OptimisticAI_VF_Optimized.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Optimistic Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/OptimisticMono_W_TextRegular.woff2") format("woff2");
+}
+:where(html) {
+  font-family: "Optimistic", system-ui, sans-serif;
+}
+:where(code, pre, kbd, samp) {
+  font-family: "Optimistic Mono", ui-monospace, monospace;
+}
+</style>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vibra - Instalar</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💜</text></svg>">
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<style>
+body{margin:0;background:#f5f5f7;font-family:system-ui,sans-serif}
+.wrap{max-width:760px;margin:0 auto;padding:12px}
+.card{background:white;border-radius:20px;padding:20px;box-shadow:0 4px 20px rgba(0,0,0,.06)}
+.icon{width:80px;height:80px;border-radius:20px;background:#f4f4f5;overflow:hidden;flex-shrink:0}
+.icon img{width:100%;height:100%;object-fit:cover}
+.row{display:flex;gap:16px}
+.screens{display:flex;gap:10px;overflow:auto;padding:12px 0}
+.screens img{height:240px;border-radius:16px;border:1px solid #eee;flex-shrink:0;object-fit:cover}
+.btn{width:100%;background:#2563eb;color:white;border:0;padding:18px;border-radius:16px;font-weight:800;font-size:17px;cursor:pointer;display:block;transition:.2s}
+.btn:disabled{opacity:.5}
+.badge{background:#f4f4f5;padding:5px 12px;border-radius:20px;font-size:11px}
+.longBox{background:#f9f9fb;padding:16px;border-radius:14px;font-size:13px;color:#333;white-space:pre-wrap;line-height:1.6}
+.hint{background:#111;color:white;padding:12px;border-radius:12px;font-size:12px;margin-top:12px}
+.ok{background:#dcfce7;color:#166534;padding:12px;border-radius:12px;font-size:12px;margin-top:12px;font-weight:600}
+</style>
 </head>
 <body>
+<div id="loading" style="padding:40px;text-align:center;color:#666">Cargando Vibra desde Firestore...</div>
+<div id="app" class="wrap" style="display:none"></div>
 
-    <!-- CABECERA PRINCIPAL -->
-    <header class="app-header">
-        <div class="header-logo">
-            <span class="logo-icon">⚡</span>
-            <h1>Vibra</h1>
-        </div>
-        <div class="header-actions">
-            <button id="btnProfileHeader" class="header-avatar-btn" title="Mi Perfil">
-                <div id="headerAvatar" class="avatar-box">👤</div>
-            </button>
-        </div>
-    </header>
+<script>
+var cfg={apiKey:"AIzaSyA3f6NfbDGpr8JsSybpn5XdmzGCmJPQTqY",authDomain:"apk-simple.firebaseapp.com",projectId:"apk-simple",storageBucket:"apk-simple.firebasestorage.app",messagingSenderId:"184380088864",appId:"1:184380088864:web:3f0e17ee08fe0cdbb61245"};
+firebase.initializeApp(cfg);
+var db=firebase.firestore();
+function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
 
-    <!-- CONTENEDOR DE SECCIONES -->
-    <main class="app-main">
+// Service Worker para que sea instalable como PWA
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
 
-        <!-- SECCIÓN 1: INICIO (FEED) -->
-        <section id="homeSection" class="app-section active">
-            <div class="section-title">
-                <h2>Inicio</h2>
-                <p>Publicaciones recientes en tu zona</p>
-            </div>
-            <div id="feedList" class="feed-container">
-                <!-- Las publicaciones se cargan dinámicamente -->
-            </div>
-        </section>
+var deferredPrompt=null;
+var installed=false;
+window.addEventListener('beforeinstallprompt',function(e){
+  e.preventDefault();
+  deferredPrompt=e;
+  var btns=document.querySelectorAll('.btn');
+  btns.forEach(b=>{ b.textContent='↓ Instalar'; b.disabled=false; });
+});
+window.addEventListener('appinstalled',function(){
+  installed=true;
+  var hints=document.querySelectorAll('.hint-installed');
+  hints.forEach(h=>{ h.innerHTML='<div class="ok">✅ ¡Instalada! Ya está en tu pantalla de inicio</div>'; h.style.display='block'; });
+});
 
-        <!-- SECCIÓN 2: PERSONAS (RADAR) -->
-        <section id="peopleSection" class="app-section">
-            <div class="section-title">
-                <h2>Personas Cerca</h2>
-                <p>Descubre quiénes están conectados a tu alrededor</p>
-            </div>
-            <div id="peopleList" class="people-grid">
-                <!-- Los usuarios cercanos se cargan dinámicamente -->
-            </div>
-        </section>
+function renderApp(docId, a, container){
+  var wrap=document.createElement('div');
+  wrap.className='card';
+  var icon = a.iconBase64 ? `<img src="${a.iconBase64}">` : '';
+  var shortDesc = esc(a.shortDesc||'');
+  var longDesc = a.longDesc||'';
+  var caps = a.screenshots||[];
+  
+  wrap.innerHTML=`
+    <div class="row"><div class="icon">${icon}</div>
+    <div style="flex:1;min-width:0"><h2 style="margin:0;font-size:22px;font-weight:800">${esc(a.name)}</h2>
+    <div style="font-size:12px;color:#666">By ${esc(a.creatorName||'Orlando Claro')}</div>
+    <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><span class="badge">${esc(a.version||'v1.2')}</span><span class="badge">${esc(a.packageName||'com.vibra.app')}</span></div></div></div>
+    <p style="font-size:13px;margin-top:14px;font-weight:500">${shortDesc}</p>
+    
+    <button class="btn" id="btn-${docId}">↓ Instalar</button>
+    <div id="hint-${docId}" class="hint-installed" style="display:none"></div>
 
-        <!-- SECCIÓN 3: MENSAJES (BANDEJA DE ENTRADA) -->
-        <section id="messagesSection" class="app-section">
-            <div class="section-title">
-                <h2>Mensajes</h2>
-                <p>Tus conversaciones privadas</p>
-            </div>
-            <div id="inboxList" class="inbox-container">
-                <!-- Los chats se cargan dinámicamente -->
-            </div>
-        </section>
+    <h3 style="font-size:13px;font-weight:700;margin-top:22px">Screenshots</h3>
+    <div class="screens" id="scr-${docId}"></div>
 
-        <!-- SECCIÓN 4: PERFIL -->
-        <section id="profileSection" class="app-section">
-            <div class="profile-card">
-                <div class="profile-avatar-container">
-                    <div id="profileAvatar" class="avatar-box large">👤</div>
-                </div>
-                <h3 id="profileName">Invitado/a</h3>
-                <p id="profilePronouns" class="profile-pronouns">(Sin registro)</p>
-                <p id="profileEmail" class="profile-email">Explora o inicia sesión para interactuar</p>
-
-                <div id="userLoggedInActions" class="profile-actions" style="display: none;">
-                    <button id="btnOpenEditProfile" class="btn-primary">Editar Perfil</button>
-                    <button id="btnDeleteAccount" class="btn-danger">Eliminar Cuenta</button>
-                    <button id="btnLogout" class="btn-secondary">Cerrar Sesión</button>
-                </div>
-
-                <div id="userLoggedInActions" style="margin-top: 15px;">
-                    <button id="btnProfileLoginToggle" class="btn-primary">Iniciar Sesión / Registrarse</button>
-                </div>
-            </div>
-        </section>
-
-    </main>
-
-    <!-- BARRA DE NAVEGACIÓN INFERIOR -->
-    <nav class="app-nav">
-        <button class="nav-item active" data-section="home">
-            <i class="fa-solid fa-house"></i>
-            <span>Inicio</span>
-        </button>
-        <button class="nav-item" data-section="people">
-            <i class="fa-solid fa-user-group"></i>
-            <span>Personas</span>
-        </button>
-        <button class="nav-item nav-add-btn" id="btnOpenCreatePost">
-            <div class="add-btn-circle">
-                <i class="fa-solid fa-plus"></i>
-            </div>
-        </button>
-        <button class="nav-item" data-section="messages" style="position: relative;">
-            <i class="fa-solid fa-comment-dots"></i>
-            <span>Mensajes</span>
-            <span id="navMsgBadge" class="nav-badge" style="display: none;"></span>
-        </button>
-        <button class="nav-item" data-section="profile">
-            <i class="fa-solid fa-user"></i>
-            <span>Perfil</span>
-        </button>
-    </nav>
-
-    <!-- MODAL: CREAR PUBLICACIÓN -->
-    <div id="createPostModal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Nueva Publicación</h3>
-                <button id="closeCreatePostModal" class="close-modal-btn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="modal-user-info">
-                    <div id="modalPostAvatar" class="avatar-box mini">👤</div>
-                    <span>Comparte lo que piensas</span>
-                </div>
-                <textarea id="postInput" placeholder="¿Qué está pasando?" rows="4"></textarea>
-                
-                <!-- SELECTOR DE TIEMPO DE CADUCIDAD -->
-                <div class="form-group" style="margin-top: 15px;">
-                    <label for="postExpiration" style="font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 5px;">Tiempo de visibilidad:</label>
-                    <select id="postExpiration" class="auth-input" style="width: 100%; padding: 10px; border-radius: 8px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color);">
-                        <option value="15">15 minutos</option>
-                        <option value="30">30 minutos</option>
-                        <option value="40" selected>40 minutos (Por defecto)</option>
-                    </select>
-                </div>
-
-                <button id="btnPublishPost" class="btn-primary" style="width: 100%; margin-top: 15px;">Publicar</button>
-            </div>
-        </div>
+    <div style="margin-top:18px">
+      <div style="font-size:12px;font-weight:700;color:#111">Descripción</div>
+      <div class="longBox" id="long-${docId}"></div>
     </div>
 
-    <!-- MODAL: AUTENTICACIÓN (LOGIN / REGISTRO) -->
-    <div id="authModal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Cuenta Vibra</h3>
-                <button id="closeAuthModal" class="close-modal-btn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="auth-tabs">
-                    <button id="tabRegister" class="auth-tab active">Registrarse</button>
-                    <button id="tabLogin" class="auth-tab">Iniciar Sesión</button>
-                </div>
+    <div style="text-align:center;margin-top:14px;font-size:10px;color:#aaa">Instalable como app • ID: ${docId}</div>
+  `;
+  container.appendChild(wrap);
 
-                <!-- CONTENEDOR REGISTRO -->
-                <div id="formRegisterContainer">
-                    <div class="auth-photo-upload">
-                        <label for="authPhotoFile" class="auth-photo-label">
-                            <div id="authAvatarPreview" class="avatar-box large">📷</div>
-                            <span>Subir Foto</span>
-                        </label>
-                        <input type="file" id="authPhotoFile" accept="image/*" style="display: none;">
-                    </div>
-                    <input type="text" id="authName" placeholder="Tu Nombre" class="auth-input">
-                    <input type="text" id="authPronouns" placeholder="Pronombres (Ej: Él/Ella/Elle)" class="auth-input">
-                    <input type="email" id="authEmail" placeholder="Correo Electrónico" class="auth-input">
-                    <input type="password" id="authPassword" placeholder="Contraseña" class="auth-input">
-                    <button id="btnStartSession" class="btn-primary" style="width: 100%; margin-top: 15px;">Crear Cuenta</button>
-                </div>
+  wrap.querySelector(`#long-${docId}`).textContent = longDesc;
 
-                <!-- CONTENEDOR LOGIN -->
-                <div id="formLoginContainer" style="display: none;">
-                    <input type="email" id="loginEmail" placeholder="Correo Electrónico" class="auth-input">
-                    <input type="password" id="loginPassword" placeholder="Contraseña" class="auth-input">
-                    <button id="btnSubmitLogin" class="btn-primary" style="width: 100%; margin-top: 15px;">Entrar</button>
-                </div>
-            </div>
-        </div>
-    </div>
+  var scrDiv=wrap.querySelector(`#scr-${docId}`);
+  caps.forEach(function(src){
+    var img=document.createElement('img');
+    img.src=src;
+    scrDiv.appendChild(img);
+  });
 
-    <!-- MODAL: CHAT PRIVADO -->
-    <div id="chatModal" class="modal-overlay chat-modal-overlay">
-        <div class="chat-modal-content">
-            <div class="chat-header">
-                <div class="chat-header-user">
-                    <div id="chatTargetAvatar" class="avatar-box mini">👤</div>
-                    <div>
-                        <strong id="chatTargetName">Usuario</strong>
-                        <small id="chatTargetStatus">En línea</small>
-                    </div>
-                </div>
-                <button id="closeChatModal" class="close-modal-btn">&times;</button>
-            </div>
-            <div id="chatMessages" class="chat-messages-container"></div>
-            <div class="chat-input-area">
-                <input type="text" id="chatInput" placeholder="Escribe un mensaje...">
-                <button id="btnSendMessage" class="btn-send"><i class="fa-solid fa-paper-plane"></i></button>
-            </div>
-        </div>
-    </div>
+  var btn=wrap.querySelector(`#btn-${docId}`);
+  var hint=wrap.querySelector(`#hint-${docId}`);
+  
+  function updateBtnState(){
+    if(installed){
+      btn.textContent='✅ Instalada';
+      btn.disabled=true;
+    } else if(deferredPrompt){
+      btn.textContent='↓ Instalar';
+      btn.disabled=false;
+    } else {
+      btn.textContent='↓ Instalar';
+      btn.disabled=false;
+    }
+  }
+  updateBtnState();
 
-    <!-- MODAL: EDITAR PERFIL -->
-    <div id="editProfileModal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Editar Perfil</h3>
-                <button id="closeEditProfile" class="close-modal-btn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="auth-photo-upload">
-                    <label for="editPhotoFile" class="auth-photo-label">
-                        <div id="editAvatarPreview" class="avatar-box large">📷</div>
-                        <span>Cambiar Foto</span>
-                    </label>
-                    <input type="file" id="editPhotoFile" accept="image/*" style="display: none;">
-                </div>
-                <input type="text" id="inputEditName" placeholder="Tu Nombre" class="auth-input">
-                <input type="text" id="inputEditPronouns" placeholder="Pronombres" class="auth-input">
-                <button id="btnSaveProfile" class="btn-primary" style="width: 100%; margin-top: 15px;">Guardar Cambios</button>
-            </div>
-        </div>
-    </div>
+  btn.onclick=function(){
+    if(deferredPrompt){
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(function(choice){
+        if(choice.outcome==='accepted'){
+          hint.innerHTML='<div class="ok">✅ ¡Instalada! Revisa tu pantalla de inicio</div>';
+        } else {
+          hint.innerHTML='<div class="hint">Instalación cancelada. Puedes intentar de nuevo.</div>';
+        }
+        hint.style.display='block';
+        deferredPrompt=null;
+        updateBtnState();
+      });
+    } else {
+      // Si no hay prompt (está en content:// o ya instalada), guiar a Chrome
+      if(window.location.protocol==='content:' || navigator.userAgent.includes('com.ace')){
+        hint.innerHTML='<div class="hint">⚠️ Estás dentro del builder. Para instalar:<br>1. Copia este link: <b>'+location.href+'</b><br>2. Ábrelo en <b>Google Chrome</b><br>3. Dale a ⋮ → Instalar app</div>';
+      } else {
+        hint.innerHTML='<div class="hint">Para instalar: Chrome → ⋮ arriba a la derecha → <b>Instalar app</b> o <b>Agregar a pantalla principal</b></div>';
+      }
+      hint.style.display='block';
+      // Si es PWA compatible pero sin prompt, intentar con manual
+      setTimeout(updateBtnState,500);
+    }
+  };
 
-    <!-- MODAL: CONFIRMAR ELIMINACIÓN DE CUENTA -->
-    <div id="deleteConfirmModal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>¿Eliminar cuenta?</h3>
-                <button id="closeDeleteModal" class="close-modal-btn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px; text-align: center;">
-                    Esta acción es irreversible. Se borrarán tu perfil, tus publicaciones y tus chats de forma permanente.
-                </p>
-                <button id="btnConfirmDeleteAccount" class="btn-danger" style="width: 100%;">Sí, eliminar todo</button>
-            </div>
-        </div>
-    </div>
+  // MANIFEST DINÁMICO - CLAVE PARA QUE SEA INSTALABLE
+  try{
+    var manifest = {
+      name: a.name || 'Vibra',
+      short_name: (a.name||'Vibra').substring(0,12),
+      description: a.shortDesc || '',
+      start_url: location.pathname + '?id=' + docId,
+      display: 'standalone',
+      background_color: '#ffffff',
+      theme_color: '#7c3aed',
+      icons: a.iconBase64 ? [
+        {src: a.iconBase64, sizes: '192x192', type: 'image/png'},
+        {src: a.iconBase64, sizes: '512x512', type: 'image/png'}
+      ] : []
+    };
+    var blob=new Blob([JSON.stringify(manifest)],{type:'application/json'});
+    var url=URL.createObjectURL(blob);
+    var link=document.createElement('link');
+    link.rel='manifest';
+    link.href=url;
+    document.head.appendChild(link);
+  }catch(e){}
+}
 
-    <!-- TOAST DE NOTIFICACIONES -->
-    <div id="toast" class="toast-notification">
-        <span id="toastMessage">Notificación</span>
-    </div>
+var id=new URLSearchParams(location.search).get('id');
+var loadPromise = id ? db.collection('apps').doc(id).get().then(d=>({id:d.id,data:d.data()})) : db.collection('apps').orderBy('createdAt','desc').limit(1).get().then(s=>{ var first=null; s.forEach(d=>{ if(!first) first={id:d.id,data:d.data()}; }); return first; });
 
-    <!-- Script principal de Firebase y Lógica -->
-    <script type="module" src="script.js"></script>
-</body>
+loadPromise.then(function(res){
+  document.getElementById('loading').style.display='none';
+  var appDiv=document.getElementById('app');
+  appDiv.style.display='block';
+  if(res && res.data){
+    renderApp(res.id, res.data, appDiv);
+  }
+});
+</script>
+<script>(function(){var loc=location.href.replace(/#.*$/,"");var ATTR_NAMES=["data-product-id","data-productid","data-product_id","product-id","productid","product_id","data-source-entity-id","source-entity-id","source_entity_id","data-product","data-metadata","data-meta"];var DATASET_KEYS=["productId","productid","product_id","sourceEntityId","sourceentityid","source_entity_id","product","metadata","meta"];function readProductId(value){if(typeof value!=="string"||value.length===0)return null;if(/^[0-9]{6,}$/.test(value))return value;var match=value.match(/(?:product(?:_|-)?id|source(?:_|-)?entity(?:_|-)?id)["'=:\s]+([0-9]{6,})/i);return match?match[1]:null}function extractProductId(start){for(var node=start;node&&node!==document.body;node=node.parentElement){for(var i=0;i<ATTR_NAMES.length;i++){var attrValue=node.getAttribute&&node.getAttribute(ATTR_NAMES[i]);var attrProductId=readProductId(attrValue);if(attrProductId)return attrProductId}var dataset=node.dataset||null;if(dataset){for(var j=0;j<DATASET_KEYS.length;j++){var dataValue=dataset[DATASET_KEYS[j]];var dataProductId=readProductId(dataValue);if(dataProductId)return dataProductId}}}return null}function isInlineMediaSlotElement(node){return !!(node&&node.getAttribute&&node.getAttribute("data-clippy-inline-media-slot")!==null)}function findInlineMediaSlot(start){for(var node=start;node&&node!==document.body;node=node.parentElement){if(isInlineMediaSlotElement(node))return node}return null}function readInlineMediaUrl(node){if(!node)return null;return node.getAttribute&&((node.getAttribute("data-clippy-inline-media-url")||node.getAttribute("data-url")||node.getAttribute("data_url")))||node.href||null}function stripHash(url){return String(url).replace(/#.*$/,"")}function urlsMatch(a,b){if(!a||!b)return false;try{return stripHash(new URL(a,loc).href)===stripHash(new URL(b,loc).href)}catch(_){return stripHash(a)===stripHash(b)}}function isFirstPartyReelUrl(value){try{var url=new URL(value,loc);if(url.protocol!=="https:")return false;var host=url.hostname.toLowerCase();var supported=host==="instagram.com"||host.endsWith(".instagram.com")||host==="facebook.com"||host.endsWith(".facebook.com");return supported&&/\/reels?\//i.test(url.pathname)}catch(_){return false}}function isInlineMediaUrlClick(node,href){var slot=findInlineMediaSlot(node);if(!slot)return false;var slotUrl=readInlineMediaUrl(slot);if(slotUrl)return urlsMatch(href,slotUrl);return isFirstPartyReelUrl(href)}function findDataHref(start){for(var node=start;node&&node!==document.body;node=node.parentElement){if(node.getAttribute){var href=node.getAttribute("data-href")||node.getAttribute("data-url");if(href)return{href:href,node:node}}}return null}var nativeOpen=window.open;window.open=function(url){if(parent!==window&&typeof url==="string"&&/^https?:\/\//.test(url)){parent.postMessage({type:"ecto:usercontent-link-click",href:url},"*");return null}return nativeOpen?nativeOpen.apply(window,arguments):null};document.addEventListener("click",function(e){var target=e.target instanceof Element?e.target:null;if(!target)return;if(parent===window)return;var a=target.closest?target.closest("a[href]"):null;if(a&&a.href&&/^https?:\/\//.test(a.href)&&a.href.replace(/#.*$/,"")!==loc){if(isInlineMediaUrlClick(a,a.href))return;var productId=extractProductId(target)||extractProductId(a);if(productId){e.preventDefault();parent.postMessage({type:"ecto-artifact-link-click",productId:productId},"*");return}e.preventDefault();parent.postMessage({type:"ecto:usercontent-link-click",href:a.href},"*");return}var dataHref=findDataHref(target);if(dataHref&&/^https?:\/\//.test(dataHref.href)&&dataHref.href.replace(/#.*$/,"")!==loc){if(isInlineMediaUrlClick(dataHref.node,dataHref.href))return;e.preventDefault();parent.postMessage({type:"ecto:usercontent-link-click",href:dataHref.href},"*")}},true)})();</script><script>(function(){var FOCUS_TYPE="ecto:artifact-focus-request";var CLOSE_TYPE="ecto:artifact-close-request";function focusArtifactDocument(){var body=document.body;if(!body)return;try{window.focus();}catch(e){}if(!body.hasAttribute("tabindex"))body.setAttribute("tabindex","-1");try{body.focus({preventScroll:true});}catch(e){try{body.focus();}catch(e2){}}}window.addEventListener("message",function(event){if(event.source!==window.parent)return;var data=event.data;if(!data||typeof data!=="object"||data.type!==FOCUS_TYPE)return;if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",focusArtifactDocument,{once:true});return;}focusArtifactDocument();});window.addEventListener("keydown",function(event){if(event.key!=="Escape")return;window.setTimeout(function(){if(event.defaultPrevented)return;window.parent.postMessage({type:CLOSE_TYPE},"*");},0);});})();</script></body>
 </html>
